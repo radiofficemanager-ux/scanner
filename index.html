@@ -332,7 +332,8 @@ function setStatus(type,msg){
 function showErr(msg){ var el=document.getElementById('m-err'); el.textContent=msg; }
 function saveSes(){
   try{localStorage.setItem('ks2',JSON.stringify({
-    token:S.token,gy:S.gy,faz:S.faz,cs:S.cs,sk:S.sk,ts:Date.now()
+    token:S.token,gy:S.gy,faz:S.faz,cs:S.cs,sk:S.sk,ts:Date.now(),
+    cnt:S.cnt  // leolvasásszám megőrzése
   }));}catch(e){}
 }
 function clearSes(){
@@ -499,26 +500,52 @@ function startDecode(){
   tick();
 }
 
+// Helyi duplikátum védelem
+var _recentScans = [];
+
 function onScan(raw){
   if(S.busy)return;
-  var text=raw.trim().toUpperCase(); if(!text)return;
+  var text=raw.trim().toUpperCase();
+  if(!text||text.length<2)return;
+
+  // HELYI duplikátum check (azonnali, nincs szerverhívás)
+  var today=new Date().toDateString();
+  var key=text+'_'+S.gy+'_'+S.faz+'_'+today;
+  if(_recentScans.indexOf(key)>=0){
+    setStatus('dup','⚠️ Mar leolvasva ma: '+text);
+    beepDUP(); doFlash('dup'); return;
+  }
+  _recentScans.push(key);
+  if(_recentScans.length>100)_recentScans.shift();
+
+  // AZONNALI visszajelzés - nem várunk a szerverre
   S.busy=true;
+  S.cnt++;
+  document.getElementById('m-cnt').textContent=S.cnt;
+  document.getElementById('m-last').textContent='Utolso: '+text;
+  setStatus('ok','✅ '+text+' – Rogzítve');
+  showScanOK(text); doFlash('ok'); beepOK();
+  saveSes();
+
+  // Háttérben szinkronizálás a szerverrel
   apiPost('submitScan',{kocsi_szam:text,gyartosor:S.gy,fazis:S.faz,cikkszam:S.cs,sokkolo:S.sk||S.gy})
     .then(function(r){
-      if(r.ok){
-        S.cnt++; document.getElementById('m-cnt').textContent=S.cnt;
-        document.getElementById('m-last').textContent='Utolsó: '+text;
-        setStatus('ok','✅ '+text+' – Rögzítve');
-        showScanOK(text); doFlash('ok'); beepOK();
-      } else if(r.duplicate){
-        setStatus('dup','⚠️ Már leolvasva: '+text);
+      if(r&&r.duplicate){
+        // Szerver duplikált - visszavonjuk
+        S.cnt--;
+        document.getElementById('m-cnt').textContent=S.cnt;
+        var ix=_recentScans.indexOf(key);
+        if(ix>=0)_recentScans.splice(ix,1);
+        setStatus('dup','⚠️ Szerver: mar leolvasva: '+text);
         doFlash('dup'); beepDUP();
-      } else {
-        setStatus('err','❌ '+(r.message||'Hiba'));
-        doFlash('err'); beepERR();
       }
-    }).catch(function(e){setStatus('err','🔴 '+(e.message||'Hiba'));doFlash('err');})
-    .finally(function(){setTimeout(function(){S.busy=false;},1200);});
+      // r.ok: rendben, az optimista UI helyes
+    }).catch(function(e){
+      // Timeout/hálózat: helyi OK marad, de jelzés
+      setStatus('ok','✅ '+text+' (szerver: '+(e.message||'timeout')+')');
+    }).finally(function(){
+      setTimeout(function(){S.busy=false;},300); // rövid cooldown
+    });
 }
 
 function doExit(){
@@ -559,6 +586,7 @@ document.addEventListener('DOMContentLoaded',function(){
     var ses=JSON.parse(localStorage.getItem('ks2')||'null');
     if(ses&&ses.token&&(Date.now()-ses.ts)<43200000){
       S.token=ses.token;S.gy=ses.gy;S.faz=ses.faz;S.cs=ses.cs;S.sk=ses.sk;
+      S.cnt=ses.cnt||0; // leolvasásszám visszaállítása
       api('getMasterData').then(function(d){S.md=d;S.termekek=(d.termekek||[]);});
       goScan(); return;
     }
