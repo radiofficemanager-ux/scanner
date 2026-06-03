@@ -5,80 +5,59 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Kiosk Scanner</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
-/* ══ RESET ══════════════════════════════════════════════ */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;
-  background:#0a0f1e;color:#f1f5f9;overflow:hidden;
-  touch-action:manipulation;-webkit-text-size-adjust:100%}
-
-/* ══ OLDALAK ═════════════════════════════════════════════ */
-.pg{display:none;min-height:100svh;min-height:100vh;
-  flex-direction:column;align-items:center;justify-content:center;
-  padding:clamp(1rem,4vw,2rem)}
+  background:#0a0f1e;color:#f1f5f9;overflow:hidden;touch-action:manipulation}
+.pg{display:none;min-height:100svh;min-height:100vh;flex-direction:column;
+  align-items:center;justify-content:center;padding:clamp(1rem,4vw,2rem)}
 .pg.on{display:flex}
 #pg-scan{padding:0;background:#000}
-
-/* ══ KÁRTYA ══════════════════════════════════════════════ */
-.card{background:#0f172a;border:1px solid #1e293b;border-radius:clamp(12px,3vw,20px);
-  padding:clamp(1.25rem,4vw,2rem);width:100%;max-width:420px}
-
-/* ══ FORM ════════════════════════════════════════════════ */
+.card{background:#0f172a;border:1px solid #1e293b;
+  border-radius:clamp(12px,3vw,20px);padding:clamp(1.25rem,4vw,2rem);
+  width:100%;max-width:440px}
 .lbl{display:block;font-size:clamp(.7rem,2.5vw,.82rem);font-weight:700;
   color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.35rem}
 select,input[type=text],input[type=password]{
-  width:100%;padding:clamp(.75rem,3vw,1rem);
-  border:2px solid #1e293b;border-radius:10px;
-  background:#020617;color:#f1f5f9;
-  font-size:clamp(.95rem,3.5vw,1.05rem);
-  outline:none;appearance:none;-webkit-appearance:none;margin-bottom:.65rem}
+  width:100%;padding:clamp(.75rem,3vw,1rem);border:2px solid #1e293b;
+  border-radius:10px;background:#020617;color:#f1f5f9;
+  font-size:clamp(.95rem,3.5vw,1.05rem);outline:none;
+  appearance:none;-webkit-appearance:none;margin-bottom:.65rem}
 select:focus,input:focus{border-color:#38bdf8}
-.pin{font-size:clamp(1.8rem,7vw,2.2rem)!important;
-  letter-spacing:.5rem;text-align:center;font-weight:800}
-select[size]{height:auto;padding:.25rem 0!important;font-size:clamp(.88rem,3vw,1rem)!important}
-
-/* ══ GOMBOK ══════════════════════════════════════════════ */
+.pin{font-size:clamp(1.8rem,7vw,2.2rem)!important;letter-spacing:.5rem;
+  text-align:center;font-weight:800}
+select[size]{height:auto;padding:.25rem 0!important;font-size:clamp(.85rem,3vw,1rem)!important}
 .btn{display:flex;align-items:center;justify-content:center;gap:.5rem;
   width:100%;padding:clamp(.9rem,3.5vw,1.1rem);border:none;
   border-radius:clamp(10px,2.5vw,14px);font-size:clamp(1rem,3.8vw,1.1rem);
   font-weight:800;cursor:pointer;margin-bottom:.5rem;
-  min-height:clamp(50px,12vw,60px);
-  user-select:none;letter-spacing:.01em}
+  min-height:clamp(50px,12vw,60px);user-select:none}
 .btn-blue{background:#38bdf8;color:#0f172a}
-.btn-blue:active{background:#0ea5e9;transform:scale(.98)}
+.btn-blue:active{background:#0ea5e9}
 .btn-gray{background:#1e293b;color:#94a3b8;border:1px solid #334155}
 .btn-gray:active{background:#334155}
-
-/* ══ LOGIN ════════════════════════════════════════════════ */
 #pg-login{background:linear-gradient(160deg,#0f172a,#0c1a3a)}
 .logo{text-align:center;margin-bottom:clamp(1rem,4vw,1.5rem)}
 .logo .ico{font-size:clamp(2.5rem,10vw,3.5rem)}
 .logo h1{font-size:clamp(1.1rem,4.5vw,1.4rem);font-weight:800;color:#38bdf8;margin-top:.4rem}
 .logo p{font-size:clamp(.75rem,2.8vw,.9rem);color:#475569}
-.err{color:#f87171;font-size:clamp(.8rem,3vw,.9rem);
-  text-align:center;min-height:1.3rem;margin-bottom:.4rem}
-
-/* ══ SETUP ════════════════════════════════════════════════ */
+.err{color:#f87171;font-size:clamp(.78rem,2.8vw,.88rem);
+  text-align:center;min-height:1.2rem;margin-bottom:.4rem;
+  word-break:break-all;line-height:1.5}
 #pg-setup{justify-content:flex-start;padding-top:clamp(1rem,4vw,2rem);overflow-y:auto}
 .setup-title{font-size:clamp(.95rem,3.8vw,1.1rem);font-weight:800;
   color:#38bdf8;text-align:center;margin-bottom:clamp(.75rem,3vw,1.25rem)}
-
-/* ══ SCANNER ═════════════════════════════════════════════ */
-/* Fejléc */
 .sc-hdr{position:absolute;top:0;left:0;right:0;z-index:200;
   display:flex;align-items:center;gap:.4rem;
   padding:clamp(.4rem,2vw,.65rem) clamp(.5rem,2vw,.8rem);
-  background:rgba(0,0,0,.85);backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px)}
+  background:rgba(0,0,0,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .sc-bdg{display:flex;gap:.3rem;flex:1;flex-wrap:wrap;min-width:0;overflow:hidden}
 .bdg{background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.3);
   border-radius:20px;padding:.2rem .55rem;
   font-size:clamp(.62rem,2.3vw,.78rem);font-weight:700;color:#7dd3fc;
   white-space:nowrap;max-width:28vw;overflow:hidden;text-overflow:ellipsis}
-/* Fejléc gombok */
 .hdr-btn{flex-shrink:0;padding:clamp(.45rem,2vw,.6rem) clamp(.75rem,3vw,1rem);
   border:1.5px solid rgba(255,255,255,.2);border-radius:8px;
   background:rgba(255,255,255,.1);color:#fff;
@@ -88,26 +67,20 @@ select[size]{height:auto;padding:.25rem 0!important;font-size:clamp(.88rem,3vw,1
   cursor:pointer;user-select:none}
 .hdr-btn.exit{background:rgba(239,68,68,.25);
   border-color:rgba(239,68,68,.45);color:#fca5a5}
-.hdr-btn:active{transform:scale(.94);opacity:.85}
-
-/* Video + keret */
+.hdr-btn:active{transform:scale(.93)}
 video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 canvas#qc{display:none}
 .qr-box{position:absolute;top:50%;left:50%;
   transform:translate(-50%,-60%);
   width:min(62vw,260px);height:min(62vw,260px);
   border:2.5px solid #38bdf8;border-radius:14px;
-  box-shadow:0 0 0 9999px rgba(0,0,0,.48);
-  z-index:10;pointer-events:none}
+  box-shadow:0 0 0 9999px rgba(0,0,0,.48);z-index:10;pointer-events:none}
 .scan-line{position:absolute;left:4%;right:4%;height:2px;
   background:linear-gradient(90deg,transparent,#38bdf8,transparent);
   animation:sl 1.8s ease-in-out infinite}
 @keyframes sl{0%,100%{top:6%;opacity:.5}50%{top:88%;opacity:1}}
-
-/* Alap panel */
 .sc-foot{position:absolute;bottom:0;left:0;right:0;z-index:100;
-  background:rgba(0,0,0,.85);backdrop-filter:blur(10px);
-  -webkit-backdrop-filter:blur(10px);
+  background:rgba(0,0,0,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   padding:clamp(.65rem,2.5vw,.9rem) clamp(.75rem,3vw,1rem) clamp(.9rem,4vw,1.2rem)}
 .cnt{font-size:clamp(2.5rem,11vw,4rem);font-weight:900;
   color:#38bdf8;line-height:1;text-align:center}
@@ -122,23 +95,20 @@ canvas#qc{display:none}
 .s-ok  {background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:#86efac}
 .s-dup {background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fcd34d}
 .s-err {background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
-
-/* Flash + Toast */
 #flash{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:900;transition:opacity .15s}
-#flash.ok{background:rgba(34,197,94,.35)}.flash-on{opacity:1!important}
+#flash.ok{background:rgba(34,197,94,.35)}
 #flash.err{background:rgba(239,68,68,.35)}
+.fon{opacity:1!important}
 #toast{position:fixed;top:clamp(.5rem,2vw,.75rem);left:50%;
-  transform:translateX(-50%);z-index:999;
-  background:#1e293b;color:#f1f5f9;
-  padding:clamp(.6rem,2.5vw,.8rem) clamp(1rem,3.5vw,1.4rem);
-  border-radius:10px;font-size:clamp(.82rem,3vw,.95rem);font-weight:600;
+  transform:translateX(-50%);z-index:999;background:#1e293b;color:#f1f5f9;
+  padding:clamp(.6rem,2.5vw,.8rem) clamp(1rem,3.5vw,1.4rem);border-radius:10px;
+  font-size:clamp(.82rem,3vw,.95rem);font-weight:600;
   box-shadow:0 4px 20px rgba(0,0,0,.6);max-width:92vw;text-align:center;
   pointer-events:none;transition:opacity .25s;opacity:0}
 #toast.on{opacity:1}
 .spin{display:inline-block;width:1em;height:1em;
   border:2px solid rgba(255,255,255,.25);border-top-color:currentColor;
-  border-radius:50%;animation:sp .7s linear infinite;
-  vertical-align:-.1em;margin-right:.35rem}
+  border-radius:50%;animation:sp .7s linear infinite;vertical-align:-.1em;margin-right:.3rem}
 @keyframes sp{to{transform:rotate(360deg)}}
 </style>
 </head>
@@ -146,13 +116,7 @@ canvas#qc{display:none}
 <div id="flash"></div>
 <div id="toast"></div>
 
-<!-- ══ CONFIG (egyszer kell beállítani) ══════════════════ -->
-<script>
-// !! EZT ÍRD ÁT A SAJÁT GAS DEPLOYMENT URL-EDRE !!
-var GAS_URL = 'https://script.google.com/macros/s/AKfycbwRIhFZnwY2RkA_WdBu-mnlyTSV6muaaJH2a_lgTlhgzU1UQuZ1nc6N5OYlaUAd55az/exec';
-</script>
-
-<!-- ══ LOGIN ══════════════════════════════════════════════ -->
+<!-- LOGIN -->
 <div class="pg on" id="pg-login">
   <div class="card">
     <div class="logo">
@@ -163,15 +127,14 @@ var GAS_URL = 'https://script.google.com/macros/s/AKfycbwRIhFZnwY2RkA_WdBu-mnlyT
     <label class="lbl">Gyártósor</label>
     <select id="m-gy"><option value="">Betöltés...</option></select>
     <label class="lbl">PIN kód</label>
-    <input id="m-pin" type="password" inputmode="numeric" maxlength="4"
-      class="pin" placeholder="●●●●" autocomplete="off">
+    <input id="m-pin" type="password" inputmode="numeric"
+      maxlength="4" class="pin" placeholder="●●●●" autocomplete="off">
     <div class="err" id="m-err"></div>
     <button class="btn btn-blue" id="btn-login">⚡ Belépés</button>
-    <button class="btn btn-gray" id="btn-test" style="font-size:.85rem;min-height:40px;opacity:.7">🔍 Kapcsolat teszt</button>
   </div>
 </div>
 
-<!-- ══ SETUP ══════════════════════════════════════════════ -->
+<!-- SETUP -->
 <div class="pg" id="pg-setup">
   <div class="card">
     <div class="setup-title">⚙️ Állomás beállítása</div>
@@ -189,18 +152,16 @@ var GAS_URL = 'https://script.google.com/macros/s/AKfycbwRIhFZnwY2RkA_WdBu-mnlyT
   </div>
 </div>
 
-<!-- ══ SCANNER ════════════════════════════════════════════ -->
+<!-- SCANNER -->
 <div class="pg" id="pg-scan">
   <div class="sc-hdr">
     <div class="sc-bdg" id="m-bdg"></div>
     <button class="hdr-btn" id="btn-stp">⚙️</button>
     <button class="hdr-btn exit" id="btn-exit">🚪 Ki</button>
   </div>
-
   <video id="qv" autoplay playsinline muted></video>
   <canvas id="qc"></canvas>
   <div class="qr-box"><div class="scan-line"></div></div>
-
   <div class="sc-foot">
     <div class="cnt" id="m-cnt">0</div>
     <div class="cnt-lbl">leolvasás</div>
@@ -210,340 +171,312 @@ var GAS_URL = 'https://script.google.com/macros/s/AKfycbwRIhFZnwY2RkA_WdBu-mnlyT
 </div>
 
 <script>
-// ══ GLOBÁLIS HIBAKEZELŐ ═══════════════════════════════════
-window.onerror = function(msg, src, line) {
-  showToast('Hiba: ' + msg + ' (' + line + ')', 5000);
-};
+// ═══════════════════════════════════════════════════
+// !! ÍRD BE A GAS URL-T !!
+// ═══════════════════════════════════════════════════
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbwRIhFZnwY2RkA_WdBu-mnlyTSV6muaaJH2a_lgTlhgzU1UQuZ1nc6N5OYlaUAd55az/exec';
+// ═══════════════════════════════════════════════════
 
-// ══ ÁLLAPOT ══════════════════════════════════════════════
+window.onerror = function(msg,s,l){ showToast('JS hiba: '+msg+' L'+l,5000); };
+
 var S = {
-  token:null, gy:null, faz:null, cs:null, sk:null,
-  cnt:0, busy:false, stream:null, raf:null, md:null, termekek:[]
+  token:null,gy:null,faz:null,cs:null,sk:null,
+  cnt:0,busy:false,stream:null,raf:null,md:null,termekek:[]
 };
 
-// ══ GAS API HÍVÁS (fetch) ═════════════════════════════════
-function api(action, data) {
-  var body = Object.assign({ action: action, token: S.token || '' }, data || {});
-  // Content-Type: text/plain -> nincs CORS preflight, GAS elfogadja
-  return fetch(GAS_URL, {
-    method: 'POST',
-    body: JSON.stringify(body),
-    redirect: 'follow',
-  }).then(function(r) {
-    return r.text();  // text-ként olvassuk, majd parsolunk
-  }).then(function(txt) {
-    // GAS néha HTML redirect oldalt ad vissza JSON helyett
-    if (!txt || txt.trim()[0] !== '{') {
-      throw new Error('GAS nem JSON választ adott. Ellenőrizd a deployment-et és a GAS_URL-t!');
+// ── JSONP API - CORS-mentes, minden domainről működik ──
+function api(action, params) {
+  return new Promise(function(resolve, reject) {
+    // Egyedi callback név
+    var cbName = '_gcb' + Date.now() + Math.floor(Math.random()*1000);
+
+    // URL összerakása
+    var url = GAS_URL + '?callback=' + cbName + '&action=' + encodeURIComponent(action);
+    var p   = Object.assign({}, params || {});
+    if (S.token) p.token = S.token;
+    for (var k in p) {
+      url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(p[k] !== undefined ? p[k] : '');
     }
-    var j = JSON.parse(txt);
-    if (j && j.ok === false) throw new Error(j.error || 'Szerverhiba');
-    return (j && j.result !== undefined) ? j.result : j;
+
+    // Timeout (10 mp)
+    var timer = setTimeout(function() {
+      cleanup();
+      reject(new Error('Időtúllépés - ellenőrizd a GAS deploymentet!'));
+    }, 10000);
+
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      var s = document.getElementById(cbName);
+      if (s && s.parentNode) s.parentNode.removeChild(s);
+    }
+
+    // Callback regisztrálása
+    window[cbName] = function(data) {
+      cleanup();
+      if (data && data.ok === false) {
+        reject(new Error(data.error || 'Szerverhiba'));
+      } else {
+        resolve(data && data.result !== undefined ? data.result : data);
+      }
+    };
+
+    // Script tag injektálás (JSONP)
+    var script = document.createElement('script');
+    script.id  = cbName;
+    script.src = url;
+    script.onerror = function() {
+      cleanup();
+      reject(new Error('Hálózati hiba. GAS URL helyes?'));
+    };
+    document.head.appendChild(script);
   });
 }
 
-// ══ UI SEGÉDFÜGGVÉNYEK ════════════════════════════════════
+// apiPost = api (JSONP mindkettő)
+function apiPost(action, data) {
+  return api(action, data);
+}
+
 var _tt;
-function showToast(msg, ms) {
-  var el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('on');
-  clearTimeout(_tt);
-  _tt = setTimeout(function(){ el.classList.remove('on'); }, ms || 2500);
+function showToast(msg,ms){
+  var el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('on');
+  clearTimeout(_tt); _tt=setTimeout(function(){el.classList.remove('on');},ms||2500);
 }
-function doFlash(type) {
-  var el = document.getElementById('flash');
-  el.className = type + ' flash-on';
-  setTimeout(function(){ el.classList.remove('flash-on'); }, 220);
+function doFlash(type){
+  var el=document.getElementById('flash');
+  el.className=type+' fon';
+  setTimeout(function(){el.classList.remove('fon');},220);
 }
-function showPg(id) {
-  document.querySelectorAll('.pg').forEach(function(p){ p.classList.remove('on'); });
+function showPg(id){
+  document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on');});
   document.getElementById(id).classList.add('on');
 }
-function setStatus(type, msg) {
-  var el = document.getElementById('m-st');
-  el.className = 'status s-' + type;
-  el.textContent = msg;
+function setStatus(type,msg){
+  var el=document.getElementById('m-st');
+  el.className='status s-'+type; el.textContent=msg;
 }
-function saveSes() {
-  try { localStorage.setItem('ks2', JSON.stringify({
-    token:S.token, gy:S.gy, faz:S.faz, cs:S.cs, sk:S.sk, ts:Date.now()
-  })); } catch(e) {}
+function showErr(msg){ var el=document.getElementById('m-err'); el.textContent=msg; }
+function saveSes(){
+  try{localStorage.setItem('ks2',JSON.stringify({
+    token:S.token,gy:S.gy,faz:S.faz,cs:S.cs,sk:S.sk,ts:Date.now()
+  }));}catch(e){}
 }
-function clearSes() {
-  try { localStorage.removeItem('ks2'); } catch(e) {}
+function clearSes(){
+  try{localStorage.removeItem('ks2');}catch(e){}
   S.token=S.gy=S.faz=S.cs=S.sk=null; S.cnt=0;
 }
 
-// ══ LOGIN ═════════════════════════════════════════════════
-function loadGy() {
-  var sel = document.getElementById('m-gy');
-  sel.innerHTML = '<option value="">Betöltés...</option>';
-  api('getMasterData').then(function(d) {
-    S.md = d;
-    sel.innerHTML = '<option value="">Válassz gyártósort...</option>';
-    (d.gyartosok || []).forEach(function(g) {
-      var o = document.createElement('option');
-      o.value = o.textContent = g['Nev'] || g['Név'] || '';
+// LOGIN
+function loadGy(){
+  var sel=document.getElementById('m-gy');
+  sel.innerHTML='<option>Betöltés...</option>';
+  showErr('');
+  api('getMasterData').then(function(d){
+    S.md=d;
+    sel.innerHTML='<option value="">Válassz gyártósort...</option>';
+    (d.gyartosok||[]).forEach(function(g){
+      var o=document.createElement('option');
+      o.value=o.textContent=g['Nev']||g['Név']||'';
       sel.appendChild(o);
     });
-  }).catch(function(e) {
-    sel.innerHTML = '<option value="">Hiba!</option>';
-    // Részletes hiba megjelenítése a képernyőn
-    document.getElementById('m-err').textContent = e.message;
-    document.getElementById('m-err').style.display = 'block';
-    showToast(e.message, 6000);
+  }).catch(function(e){
+    sel.innerHTML='<option value="">Hiba!</option>';
+    showErr('Betöltési hiba: '+e.message);
   });
 }
 
-function doLogin() {
-  var gy  = document.getElementById('m-gy').value;
-  var pin = document.getElementById('m-pin').value;
-  var err = document.getElementById('m-err');
-  var btn = document.getElementById('btn-login');
-  err.textContent = '';
-  if (!gy)           { err.textContent = 'Válassz gyártósort!'; return; }
-  if (pin.length !== 4) { err.textContent = '4 számjegyű PIN kell!'; return; }
-  btn.innerHTML = '<span class="spin"></span>Belépés...'; btn.disabled = true;
-  api('kioszkLogin', { gyartosor: gy, pin: pin }).then(function(r) {
-    S.token = r.token; S.gy = r.gyartosor; saveSes();
+function doLogin(){
+  var gy=document.getElementById('m-gy').value;
+  var pin=document.getElementById('m-pin').value;
+  var btn=document.getElementById('btn-login');
+  showErr('');
+  if(!gy){showErr('Válassz gyártósort!');return;}
+  if(pin.length!==4){showErr('4 számjegyű PIN kell!');return;}
+  btn.innerHTML='<span class="spin"></span>Belépés...'; btn.disabled=true;
+  apiPost('kioszkLogin',{gyartosor:gy,pin:pin}).then(function(r){
+    S.token=r.token; S.gy=r.gyartosor; saveSes();
     fillSetup(); showPg('pg-setup');
-    showToast('Üdvözöljük! Műszak: ' + r.muszak);
-  }).catch(function(e) {
-    err.textContent = e.message;
-    document.getElementById('m-pin').value = '';
-  }).finally(function() {
-    btn.innerHTML = '⚡ Belépés'; btn.disabled = false;
-  });
+    showToast('Üdvözöljük! Műszak: '+r.muszak);
+  }).catch(function(e){
+    showErr(e.message);
+    document.getElementById('m-pin').value='';
+  }).finally(function(){btn.innerHTML='⚡ Belépés'; btn.disabled=false;});
 }
 
-// ══ SETUP ═════════════════════════════════════════════════
-function fillSetup() {
-  var d = S.md;
-  if (!d) { api('getMasterData').then(function(md){ S.md=md; fillSetup(); }); return; }
-
-  var fsel = document.getElementById('m-faz');
-  fsel.innerHTML = '<option value="">— Válassz fázist —</option>';
-  (d.fazisok||[]).sort(function(a,b){ return (+a['Sorrend']||0)-(+b['Sorrend']||0); })
-    .forEach(function(f) {
-      var o = document.createElement('option');
-      o.value = o.textContent = f['Nev'] || f['Név'] || '';
-      if (S.faz && o.value === S.faz) o.selected = true;
-      fsel.appendChild(o);
+// SETUP
+function fillSetup(){
+  var d=S.md;
+  if(!d){api('getMasterData').then(function(md){S.md=md;fillSetup();});return;}
+  var fs=document.getElementById('m-faz');
+  fs.innerHTML='<option value="">— Válassz fázist —</option>';
+  (d.fazisok||[]).sort(function(a,b){return(+a['Sorrend']||0)-(+b['Sorrend']||0);})
+    .forEach(function(f){
+      var o=document.createElement('option');
+      o.value=o.textContent=f['Nev']||f['Név']||'';
+      if(S.faz&&o.value===S.faz)o.selected=true;
+      fs.appendChild(o);
     });
-
-  var ssel = document.getElementById('m-sk');
-  ssel.innerHTML = '<option value="">— Válassz gépet —</option>';
-  (d.sokkolo_gep||[]).forEach(function(n) {
-    var o = document.createElement('option');
-    o.value = o.textContent = n;
-    if (S.sk && o.value === S.sk) o.selected = true;
-    ssel.appendChild(o);
+  var ss=document.getElementById('m-sk');
+  ss.innerHTML='<option value="">— Válassz gépet —</option>';
+  (d.sokkolo_gep||[]).forEach(function(n){
+    var o=document.createElement('option');
+    o.value=o.textContent=n;
+    if(S.sk&&o.value===S.sk)o.selected=true;
+    ss.appendChild(o);
   });
-
-  S.termekek = (d.termekek||[]).filter(function(t){ return t.Aktiv!==false; });
-  filterT('');
-  updSkRow();
+  S.termekek=(d.termekek||[]).filter(function(t){return t.Aktiv!==false;});
+  filterT(''); updSkRow();
 }
 
-function filterT(q) {
-  var sel = document.getElementById('m-cs');
-  q = (q||'').toLowerCase();
-  var list = q ? S.termekek.filter(function(t){
-    return (t.Cikkszam||'').toLowerCase().indexOf(q)>=0 ||
+function filterT(q){
+  var sel=document.getElementById('m-cs');
+  q=(q||'').toLowerCase();
+  var list=q?S.termekek.filter(function(t){
+    return(t.Cikkszam||'').toLowerCase().indexOf(q)>=0||
            (t.Nev||'').toLowerCase().indexOf(q)>=0;
-  }) : S.termekek;
-  sel.innerHTML = '<option value="">(nincs termék)</option>';
-  list.forEach(function(t) {
-    var o = document.createElement('option');
-    o.value = t.Cikkszam || '';
-    o.textContent = (t.Cikkszam||'') + ' – ' + (t.Nev||'');
-    if (S.cs && o.value === S.cs) o.selected = true;
+  }):S.termekek;
+  sel.innerHTML='<option value="">(nincs termék)</option>';
+  list.forEach(function(t){
+    var o=document.createElement('option');
+    o.value=t.Cikkszam||'';
+    o.textContent=(t.Cikkszam||'')+' – '+(t.Nev||'');
+    if(S.cs&&o.value===S.cs)o.selected=true;
     sel.appendChild(o);
   });
 }
 
-function updSkRow() {
-  var faz = document.getElementById('m-faz').value;
-  var row = document.getElementById('sk-row');
-  row.style.display = (faz==='Sokkolás'||faz==='Sokkolas') ? '' : 'none';
+function updSkRow(){
+  var faz=document.getElementById('m-faz').value;
+  document.getElementById('sk-row').style.display=
+    (faz==='Sokkolás'||faz==='Sokkolas')?'':'none';
 }
 
-function doStart() {
-  var faz = document.getElementById('m-faz').value;
-  var cs  = document.getElementById('m-cs').value;
-  var sk  = document.getElementById('m-sk').value;
-  if (!faz) { showToast('Válassz fázist!'); return; }
-  if ((faz==='Sokkolás'||faz==='Sokkolas') && !sk) { showToast('Add meg a sokkoló gépet!'); return; }
-  S.faz=faz; S.cs=cs; S.sk=sk; saveSes();
-  goScan();
+function doStart(){
+  var faz=document.getElementById('m-faz').value;
+  var cs=document.getElementById('m-cs').value;
+  var sk=document.getElementById('m-sk').value;
+  if(!faz){showToast('Válassz fázist!');return;}
+  if((faz==='Sokkolás'||faz==='Sokkolas')&&!sk){showToast('Add meg a sokkoló gépet!');return;}
+  S.faz=faz; S.cs=cs; S.sk=sk; saveSes(); goScan();
 }
 
-// ══ SCANNER ═══════════════════════════════════════════════
-function goScan() {
-  var b = document.getElementById('m-bdg');
-  b.innerHTML =
-    '<span class="bdg">🏭 '+S.gy+'</span>' +
-    '<span class="bdg">🔄 '+S.faz+'</span>' +
-    (S.sk ? '<span class="bdg">🧊 '+S.sk+'</span>' : '') +
-    (S.cs ? '<span class="bdg">📦 '+S.cs+'</span>' : '');
-  document.getElementById('m-cnt').textContent = S.cnt;
-  document.getElementById('m-last').textContent = '';
-  setStatus('idle', 'Tartsd a QR kódot a keretbe');
+// SCANNER
+function goScan(){
+  var b=document.getElementById('m-bdg');
+  b.innerHTML=
+    '<span class="bdg">🏭 '+S.gy+'</span>'+
+    '<span class="bdg">🔄 '+S.faz+'</span>'+
+    (S.sk?'<span class="bdg">🧊 '+S.sk+'</span>':'')+
+    (S.cs?'<span class="bdg">📦 '+S.cs+'</span>':'');
+  document.getElementById('m-cnt').textContent=S.cnt;
+  document.getElementById('m-last').textContent='';
+  setStatus('idle','Tartsd a QR kódot a keretbe');
   showPg('pg-scan');
   startCam();
 }
 
-function startCam() {
+function startCam(){
   stopCam();
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    setStatus('err', 'A böngésző nem támogatja a kamerát!');
-    return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    setStatus('err','Kamera API nem elérhető!'); return;
   }
   navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } }
-  }).then(function(stream) {
-    S.stream = stream;
-    var v = document.getElementById('qv');
-    v.srcObject = stream;
-    v.play().catch(function(){});
-    v.addEventListener('loadedmetadata', startDecode, { once: true });
-    setStatus('idle', 'Tartsd a QR kódot a keretbe');
-  }).catch(function(e) {
-    var name = e.name || e.message || String(e);
-    setStatus('err', '❌ Kamera hiba: ' + name +
-      '\n\nEllenőrizd: chrome://settings/content/camera → engedélyezd ezt az oldalt');
-    showToast('Kamera hiba: ' + name, 4000);
+    video:{facingMode:{ideal:'environment'},width:{ideal:1920}}
+  }).then(function(stream){
+    S.stream=stream;
+    var v=document.getElementById('qv');
+    v.srcObject=stream; v.play().catch(function(){});
+    v.addEventListener('loadedmetadata',startDecode,{once:true});
+    setStatus('idle','Tartsd a QR kódot a keretbe');
+  }).catch(function(e){
+    setStatus('err','Kamera: '+( e.name||e.message));
+    showToast('Kamera hiba: '+(e.name||e.message),4000);
   });
 }
 
-function stopCam() {
-  if (S.raf) { cancelAnimationFrame(S.raf); S.raf=null; }
-  if (S.stream) { S.stream.getTracks().forEach(function(t){t.stop();}); S.stream=null; }
-  var v = document.getElementById('qv');
-  if (v) v.srcObject = null;
+function stopCam(){
+  if(S.raf){cancelAnimationFrame(S.raf);S.raf=null;}
+  if(S.stream){S.stream.getTracks().forEach(function(t){t.stop();});S.stream=null;}
+  var v=document.getElementById('qv'); if(v)v.srcObject=null;
 }
 
-function startDecode() {
-  var v   = document.getElementById('qv');
-  var c   = document.getElementById('qc');
-  var ctx = c.getContext('2d');
-  var last = '';
-  function tick() {
-    S.raf = requestAnimationFrame(tick);
-    if (!S.stream || v.readyState < v.HAVE_ENOUGH_DATA) return;
+function startDecode(){
+  var v=document.getElementById('qv'),c=document.getElementById('qc'),ctx=c.getContext('2d'),last='';
+  function tick(){
+    S.raf=requestAnimationFrame(tick);
+    if(!S.stream||v.readyState<v.HAVE_ENOUGH_DATA)return;
     c.width=v.videoWidth; c.height=v.videoHeight;
-    ctx.drawImage(v, 0, 0);
-    var d  = ctx.getImageData(0, 0, c.width, c.height);
-    var qr = jsQR(d.data, d.width, d.height, { inversionAttempts: 'dontInvert' });
-    if (qr && qr.data && qr.data !== last) {
-      last = qr.data;
-      setTimeout(function(){ last=''; }, 1500);
-      onScan(qr.data);
+    ctx.drawImage(v,0,0);
+    var d=ctx.getImageData(0,0,c.width,c.height);
+    var qr=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});
+    if(qr&&qr.data&&qr.data!==last){
+      last=qr.data; setTimeout(function(){last='';},1500); onScan(qr.data);
     }
   }
   tick();
 }
 
-function onScan(raw) {
-  if (S.busy) return;
-  var text = raw.trim().toUpperCase();
-  if (!text) return;
-  S.busy = true;
-  api('submitScan', {
-    kocsi_szam: text, gyartosor: S.gy,
-    fazis: S.faz, cikkszam: S.cs, sokkolo: S.sk || S.gy,
-  }).then(function(r) {
-    if (r.ok) {
-      S.cnt++;
-      document.getElementById('m-cnt').textContent = S.cnt;
-      document.getElementById('m-last').textContent = 'Utolsó: ' + text;
-      setStatus('ok', '✅ ' + text + ' – Rögzítve');
-      doFlash('ok');
-    } else if (r.duplicate) {
-      setStatus('dup', '⚠️ Már leolvasva: ' + text);
-      doFlash('err');
-    } else {
-      setStatus('err', '❌ ' + (r.message || 'Hiba'));
-      doFlash('err');
-    }
-  }).catch(function(e) {
-    setStatus('err', '🔴 ' + (e.message||'Kapcsolati hiba'));
-    doFlash('err');
-  }).finally(function() {
-    setTimeout(function(){ S.busy=false; }, 1200);
-  });
+function onScan(raw){
+  if(S.busy)return;
+  var text=raw.trim().toUpperCase(); if(!text)return;
+  S.busy=true;
+  apiPost('submitScan',{kocsi_szam:text,gyartosor:S.gy,fazis:S.faz,cikkszam:S.cs,sokkolo:S.sk||S.gy})
+    .then(function(r){
+      if(r.ok){
+        S.cnt++; document.getElementById('m-cnt').textContent=S.cnt;
+        document.getElementById('m-last').textContent='Utolsó: '+text;
+        setStatus('ok','✅ '+text+' – Rögzítve'); doFlash('ok');
+      } else if(r.duplicate){
+        setStatus('dup','⚠️ Már leolvasva: '+text); doFlash('err');
+      } else { setStatus('err','❌ '+(r.message||'Hiba')); doFlash('err'); }
+    }).catch(function(e){setStatus('err','🔴 '+(e.message||'Hiba'));doFlash('err');})
+    .finally(function(){setTimeout(function(){S.busy=false;},1200);});
 }
 
-function doExit() {
-  stopCam(); clearSes();
-  showPg('pg-login');
-  document.getElementById('m-pin').value = '';
-  document.getElementById('m-err').textContent = '';
-  loadGy();
+function doExit(){
+  stopCam(); clearSes(); showPg('pg-login');
+  document.getElementById('m-pin').value='';
+  showErr(''); loadGy();
 }
+function doSetupPg(){stopCam();fillSetup();showPg('pg-setup');}
 
-function doSetupPg() { stopCam(); fillSetup(); showPg('pg-setup'); }
-
-// ══ INIT ══════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', function() {
-  // Egyszerű, megbízható click binding
-  function on(id, fn) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('click', fn);
-    el.addEventListener('touchend', function(e){ e.preventDefault(); fn(); }, {passive:false});
+// INIT
+document.addEventListener('DOMContentLoaded',function(){
+  function on(id,fn){
+    var el=document.getElementById(id); if(!el)return;
+    el.addEventListener('click',fn);
+    el.addEventListener('touchend',function(e){e.preventDefault();fn();},{passive:false});
   }
-
-  on('btn-login', doLogin);
-  on('btn-start', doStart);
-  on('btn-back',  function(){ showPg('pg-login'); loadGy(); });
-  on('btn-exit',  doExit);
-  on('btn-stp',   doSetupPg);
-
-  document.getElementById('m-pin').addEventListener('input', function(){
-    if (this.value.length === 4) doLogin();
+  on('btn-login',doLogin);
+  on('btn-start',doStart);
+  on('btn-back',function(){showPg('pg-login');loadGy();});
+  on('btn-exit',doExit);
+  on('btn-stp',doSetupPg);
+  document.getElementById('m-pin').addEventListener('input',function(){
+    if(this.value.length===4)doLogin();
   });
-  document.getElementById('btn-test').addEventListener('click', function() {
-    var errEl = document.getElementById('m-err');
-    errEl.textContent = 'Tesztelés...'; errEl.style.display='block';
-    // 1. Ping teszt
-    fetch(GAS_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'ping' }),
-      redirect: 'follow',
-    })
-    .then(function(r) { return r.text(); })
-    .then(function(txt) {
-      errEl.textContent = 'Válasz (' + txt.length + ' kar): ' + txt.substring(0,120);
-    })
-    .catch(function(e) {
-      errEl.textContent = 'FETCH HIBA: ' + e.message + ' | GAS_URL: ' + GAS_URL.substring(0,60);
-    });
-  });
-  document.getElementById('m-faz').addEventListener('change', updSkRow);
-  document.getElementById('m-tsrch').addEventListener('input', function(){
-    filterT(this.value);
-  });
+  document.getElementById('m-faz').addEventListener('change',updSkRow);
+  document.getElementById('m-tsrch').addEventListener('input',function(){filterT(this.value);});
 
-  // Vissza gomb
-  history.pushState(null, '');
-  window.addEventListener('popstate', function(){
-    history.pushState(null, '');
-    var p = document.querySelector('.pg.on');
-    if (!p) return;
-    if (p.id === 'pg-scan')  doSetupPg();
-    else if (p.id === 'pg-setup') { showPg('pg-login'); loadGy(); }
+  history.pushState(null,'');
+  window.addEventListener('popstate',function(){
+    history.pushState(null,'');
+    var p=document.querySelector('.pg.on'); if(!p)return;
+    if(p.id==='pg-scan')doSetupPg();
+    else if(p.id==='pg-setup'){showPg('pg-login');loadGy();}
   });
 
   // Session visszaállítás
-  try {
-    var ses = JSON.parse(localStorage.getItem('ks2') || 'null');
-    if (ses && ses.token && (Date.now()-ses.ts) < 43200000) {
-      S.token=ses.token; S.gy=ses.gy; S.faz=ses.faz; S.cs=ses.cs; S.sk=ses.sk;
-      api('getMasterData').then(function(d){ S.md=d; S.termekek=(d.termekek||[]); });
+  try{
+    var ses=JSON.parse(localStorage.getItem('ks2')||'null');
+    if(ses&&ses.token&&(Date.now()-ses.ts)<43200000){
+      S.token=ses.token;S.gy=ses.gy;S.faz=ses.faz;S.cs=ses.cs;S.sk=ses.sk;
+      api('getMasterData').then(function(d){S.md=d;S.termekek=(d.termekek||[]);});
       goScan(); return;
     }
-  } catch(e){}
+  }catch(e){}
 
   loadGy();
 });
