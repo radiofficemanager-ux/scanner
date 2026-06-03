@@ -95,10 +95,22 @@ canvas#qc{display:none}
 .s-ok  {background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:#86efac}
 .s-dup {background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fcd34d}
 .s-err {background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
-#flash{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:900;transition:opacity .15s}
-#flash.ok{background:rgba(34,197,94,.35)}
-#flash.err{background:rgba(239,68,68,.35)}
+#flash{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:900;transition:opacity .2s}
+#flash.ok{background:rgba(34,197,94,.55)}
+#flash.err{background:rgba(239,68,68,.5)}
+#flash.dup{background:rgba(245,158,11,.45)}
 .fon{opacity:1!important}
+
+/* Siker overlay - nagy szöveg a visszajelzéshez */
+#scan-ok-overlay{
+  position:fixed;inset:0;z-index:800;pointer-events:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .15s;
+}
+#scan-ok-overlay.show{opacity:1}
+.ok-icon{font-size:clamp(5rem,20vw,9rem);line-height:1}
+.ok-text{font-size:clamp(1.5rem,6vw,3rem);font-weight:900;color:#fff;
+  text-shadow:0 2px 20px rgba(0,0,0,.5);margin-top:.5rem;text-align:center}
 #toast{position:fixed;top:clamp(.5rem,2vw,.75rem);left:50%;
   transform:translateX(-50%);z-index:999;background:#1e293b;color:#f1f5f9;
   padding:clamp(.6rem,2.5vw,.8rem) clamp(1rem,3.5vw,1.4rem);border-radius:10px;
@@ -115,6 +127,10 @@ canvas#qc{display:none}
 <body>
 <div id="flash"></div>
 <div id="toast"></div>
+<div id="scan-ok-overlay">
+  <div class="ok-icon">✅</div>
+  <div class="ok-text" id="ok-text"></div>
+</div>
 
 <!-- LOGIN -->
 <div class="pg on" id="pg-login">
@@ -174,6 +190,51 @@ canvas#qc{display:none}
 // ═══════════════════════════════════════════════════
 // !! ÍRD BE A GAS URL-T !!
 // ═══════════════════════════════════════════════════
+// ── HANGJELZÉS + REZGÉS ────────────────────────────────────
+function beepOK() {
+  try {
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    [0,130].forEach(function(d){
+      var o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=880;o.type='sine';
+      var t=ctx.currentTime+d/1000;
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(0.4,t+0.01);
+      g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+      o.start(t);o.stop(t+0.2);
+    });
+  } catch(e){}
+  if(navigator.vibrate)navigator.vibrate([80,40,80]);
+}
+function beepERR() {
+  try {
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    var o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.frequency.value=200;o.type='sawtooth';
+    g.gain.setValueAtTime(0.35,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
+    o.start();o.stop(ctx.currentTime+0.5);
+  } catch(e){}
+  if(navigator.vibrate)navigator.vibrate([300]);
+}
+function beepDUP() {
+  try {
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    [0,160,320].forEach(function(d){
+      var o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=550;o.type='triangle';
+      var t=ctx.currentTime+d/1000;
+      g.gain.setValueAtTime(0.2,t);
+      g.gain.exponentialRampToValueAtTime(0.001,t+0.12);
+      o.start(t);o.stop(t+0.12);
+    });
+  } catch(e){}
+  if(navigator.vibrate)navigator.vibrate([50,50,50]);
+}
+
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbwRIhFZnwY2RkA_WdBu-mnlyTSV6muaaJH2a_lgTlhgzU1UQuZ1nc6N5OYlaUAd55az/exec';
 // ═══════════════════════════════════════════════════
 
@@ -247,12 +308,23 @@ function showToast(msg,ms){
 function doFlash(type){
   var el=document.getElementById('flash');
   el.className=type+' fon';
-  setTimeout(function(){el.classList.remove('fon');},220);
+  setTimeout(function(){el.classList.remove('fon');},type==='ok'?350:250);
 }
 function showPg(id){
   document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on');});
   document.getElementById(id).classList.add('on');
 }
+var _okTimer;
+function showScanOK(text) {
+  var ov  = document.getElementById('scan-ok-overlay');
+  var txt = document.getElementById('ok-text');
+  if (!ov) return;
+  if (txt) txt.textContent = text;
+  ov.classList.add('show');
+  clearTimeout(_okTimer);
+  _okTimer = setTimeout(function() { ov.classList.remove('show'); }, 800);
+}
+
 function setStatus(type,msg){
   var el=document.getElementById('m-st');
   el.className='status s-'+type; el.textContent=msg;
@@ -436,10 +508,15 @@ function onScan(raw){
       if(r.ok){
         S.cnt++; document.getElementById('m-cnt').textContent=S.cnt;
         document.getElementById('m-last').textContent='Utolsó: '+text;
-        setStatus('ok','✅ '+text+' – Rögzítve'); doFlash('ok');
+        setStatus('ok','✅ '+text+' – Rögzítve');
+        showScanOK(text); doFlash('ok'); beepOK();
       } else if(r.duplicate){
-        setStatus('dup','⚠️ Már leolvasva: '+text); doFlash('err');
-      } else { setStatus('err','❌ '+(r.message||'Hiba')); doFlash('err'); }
+        setStatus('dup','⚠️ Már leolvasva: '+text);
+        doFlash('dup'); beepDUP();
+      } else {
+        setStatus('err','❌ '+(r.message||'Hiba'));
+        doFlash('err'); beepERR();
+      }
     }).catch(function(e){setStatus('err','🔴 '+(e.message||'Hiba'));doFlash('err');})
     .finally(function(){setTimeout(function(){S.busy=false;},1200);});
 }
