@@ -168,9 +168,15 @@ canvas#qc{display:none}
       <select id="m-cs" size="4"></select>
     </div>
     <!-- Sokkoló: csak Sokkolás fázisnál -->
+    <!-- Sokkoló: csak Sokkolás fázisnál -->
     <div id="sokkolo-row" style="display:none">
-      <label class="lbl">Sokkoló gép <span style="color:#f87171">*kötelező</span></label>
-      <select id="m-sk"><option value="">— Válassz gépet —</option></select>
+      <label class="lbl" style="margin-top:.5rem">
+        Melyik sokkolóba tolják?
+        <span style="color:#f87171;font-size:.75rem"> * kötelező</span>
+      </label>
+      <select id="m-sk" style="font-size:clamp(1rem,3.8vw,1.1rem);font-weight:700">
+        <option value="">— Válassz sokkolót —</option>
+      </select>
     </div>
     <button class="btn btn-blue" id="btn-start" style="margin-top:.75rem">▶ Olvasó indítása</button>
     <button class="btn btn-gray" id="btn-back">← Vissza</button>
