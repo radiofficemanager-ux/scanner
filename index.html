@@ -508,7 +508,7 @@ function startCam(){
     setStatus('err','Kamera API nem elérhető!'); return;
   }
   navigator.mediaDevices.getUserMedia({
-    video:{facingMode:{ideal:'environment'},width:{ideal:1920}}
+    video:{facingMode:{ideal:'environment'},width:{ideal:640,max:1280},height:{ideal:480,max:720}}
   }).then(function(stream){
     S.stream=stream;
     var v=document.getElementById('qv');
@@ -532,9 +532,11 @@ var _hidBuf='', _hidTimer=null;
 
 
 function startDecode(){
+  var _fr=0;
   var v=document.getElementById('qv'),c=document.getElementById('qc'),ctx=c.getContext('2d'),last='';
   function tick(){
     S.raf=requestAnimationFrame(tick);
+    if(++_fr%2!==0)return; // 30fps elegendő
     if(!S.stream||v.readyState<v.HAVE_ENOUGH_DATA)return;
     c.width=v.videoWidth; c.height=v.videoHeight;
     ctx.drawImage(v,0,0);
