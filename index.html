@@ -161,9 +161,17 @@ canvas#qc{display:none}
       <label class="lbl">Sokkoló gép</label>
       <select id="m-sk"><option value="">— Válassz —</option></select>
     </div>
-    <label class="lbl">Termék keresés</label>
-    <input id="m-tsrch" type="text" placeholder="Cikkszám vagy termék neve...">
-    <select id="m-cs" size="4"></select>
+    <!-- Termék: csak Sorvége fázisnál -->
+    <div id="termek-row" style="display:none">
+      <label class="lbl">Termék kiválasztása <span style="color:#f87171">*kötelező</span></label>
+      <input id="m-tsrch" type="text" placeholder="Cikkszám vagy termék neve...">
+      <select id="m-cs" size="4"></select>
+    </div>
+    <!-- Sokkoló: csak Sokkolás fázisnál -->
+    <div id="sokkolo-row" style="display:none">
+      <label class="lbl">Sokkoló gép <span style="color:#f87171">*kötelező</span></label>
+      <select id="m-sk"><option value="">— Válassz gépet —</option></select>
+    </div>
     <button class="btn btn-blue" id="btn-start" style="margin-top:.75rem">▶ Olvasó indítása</button>
     <button class="btn btn-gray" id="btn-back">← Vissza</button>
   </div>
@@ -173,17 +181,9 @@ canvas#qc{display:none}
 <div class="pg" id="pg-scan">
   <div class="sc-hdr">
     <div class="sc-bdg" id="m-bdg"></div>
-    <!-- Mód váltó -->
-    <div style="display:flex;background:rgba(255,255,255,.08);border-radius:8px;padding:2px;gap:2px;flex-shrink:0">
-      <button class="hdr-btn active-mode" id="btn-mode-cam" style="min-width:auto;padding:.4rem .7rem;font-size:.75rem;border:none">📷</button>
-      <button class="hdr-btn" id="btn-mode-hid" style="min-width:auto;padding:.4rem .7rem;font-size:.75rem;border:none" title="USB/Bluetooth scanner">⌨️</button>
-    </div>
     <button class="hdr-btn" id="btn-stp">⚙️</button>
     <button class="hdr-btn exit" id="btn-exit">🚪 Ki</button>
   </div>
-  <!-- HID scanner rejtett input (billentyűzet mód) -->
-  <input id="hid-input" type="text" autocomplete="off" autocorrect="off"
-    spellcheck="false" style="position:fixed;left:-9999px;top:0;opacity:0;width:1px;height:1px">
   <video id="qv" autoplay playsinline muted></video>
   <canvas id="qc"></canvas>
   <div class="qr-box"><div class="scan-line"></div></div>
@@ -440,17 +440,34 @@ function filterT(q){
 
 function updSkRow(){
   var faz=document.getElementById('m-faz').value;
-  document.getElementById('sk-row').style.display=
-    (faz==='Sokkolás'||faz==='Sokkolas')?'':'none';
+  var isSorvege  = (faz==='Sorvége'  || faz==='Sorvege');
+  var isSokkolas = (faz==='Sokkolás' || faz==='Sokkolas');
+  var tRow = document.getElementById('termek-row');
+  var sRow = document.getElementById('sokkolo-row');
+  // Régi sk-row kompatibilitás
+  var oldSk = document.getElementById('sk-row');
+  if (tRow) tRow.style.display = isSorvege  ? '' : 'none';
+  if (sRow) sRow.style.display = isSokkolas ? '' : 'none';
+  if (oldSk) oldSk.style.display = 'none'; // már nem kell
+  // Ha nem sorvége: cikkszám törlése (rendszer keresi meg)
+  if (!isSorvege) {
+    var cs = document.getElementById('m-cs');
+    if (cs) { cs.innerHTML='<option value="">(auto)</option>'; }
+    S.cs = '';
+  }
 }
 
 function doStart(){
   var faz=document.getElementById('m-faz').value;
-  var cs=document.getElementById('m-cs').value;
-  var sk=document.getElementById('m-sk').value;
-  if(!faz){showToast('Válassz fázist!');return;}
-  if((faz==='Sokkolás'||faz==='Sokkolas')&&!sk){showToast('Add meg a sokkoló gépet!');return;}
-  S.faz=faz; S.cs=cs; S.sk=sk; saveSes(); goScan();
+  var cs =document.getElementById('m-cs')  ? document.getElementById('m-cs').value  : '';
+  var sk =document.getElementById('m-sk')  ? document.getElementById('m-sk').value  : '';
+  var isSorvege  = (faz==='Sorvége'  || faz==='Sorvege');
+  var isSokkolas = (faz==='Sokkolás' || faz==='Sokkolas');
+  if (!faz) { showToast('Válassz fázist!'); return; }
+  if (isSorvege  && !cs) { showToast('Sorvégén kötelező a termék kiválasztása!'); return; }
+  if (isSokkolas && !sk) { showToast('Sokkoláshoz válassz sokkoló gépet!'); return; }
+  S.faz=faz; S.cs=isSorvege?cs:''; S.sk=isSokkolas?sk:'';
+  saveSes(); goScan();
 }
 
 // SCANNER
@@ -470,10 +487,7 @@ function goScan(){
   document.getElementById('m-last').textContent='';
   setStatus('idle','Tartsd a QR kódot a keretbe');
   showPg('pg-scan');
-  // Mentett mód visszaállítása
-  var savedMode = 'cam';
-  try { savedMode = localStorage.getItem('scan_mode') || 'cam'; } catch(e){}
-  setMode(savedMode);
+  startCam();
 }
 
 function startCam(){
@@ -502,65 +516,8 @@ function stopCam(){
 }
 
 var _hidBuf='', _hidTimer=null;
-function startHID(){
-  // HID/Bluetooth scanner: billentyűzetként gépeli a kódot + Enter
-  var inp = document.getElementById('hid-input');
-  if (!inp) return;
-  inp.value='';
-  inp.focus();
-  // Folyamatosan visszafókuszál
-  S._hidInterval = setInterval(function(){
-    var active = document.querySelector('.pg.on');
-    if (active && active.id==='pg-scan') inp.focus();
-  }, 1500);
-  inp.oninput = function(){
-    _hidBuf = inp.value;
-    clearTimeout(_hidTimer);
-    // Ha 80ms-en belül nem jön több karakter = kész
-    _hidTimer = setTimeout(function(){
-      var val = _hidBuf.replace(/\n|\r/g,'').trim();
-      if (val.length >= 3) onScan(val);
-      inp.value=''; _hidBuf=''; inp.focus();
-    }, 80);
-  };
-  inp.onkeydown = function(e){
-    if (e.key==='Enter'){
-      var val=inp.value.replace(/\n|\r/g,'').trim();
-      if(val.length>=3) onScan(val);
-      inp.value=''; _hidBuf=''; inp.focus();
-    }
-  };
-}
 
-function stopHID(){
-  clearInterval(S._hidInterval);
-  var inp=document.getElementById('hid-input');
-  if(inp){ inp.oninput=null; inp.onkeydown=null; }
-}
 
-function setMode(mode){
-  S.scanMode = mode;
-  var camBtn = document.getElementById('btn-mode-cam');
-  var hidBtn = document.getElementById('btn-mode-hid');
-  var video  = document.getElementById('qv');
-  var qrbox  = document.querySelector('.qr-box');
-  if(camBtn) camBtn.classList.toggle('active-mode', mode==='cam');
-  if(hidBtn) hidBtn.classList.toggle('active-mode', mode==='hid');
-  try { localStorage.setItem('scan_mode', mode); } catch(e){}
-  if(mode==='cam'){
-    stopHID();
-    if(video) video.style.display='';
-    if(qrbox) qrbox.style.display='';
-    startCam();
-    setStatus('idle','Tartsd a QR kódot a keretbe');
-  } else {
-    stopCam();
-    if(video) video.style.display='none';
-    if(qrbox) qrbox.style.display='none';
-    startHID();
-    setStatus('idle','⌨️ USB/BT scanner: olvasd be a QR kódot');
-  }
-}
 
 function startDecode(){
   var v=document.getElementById('qv'),c=document.getElementById('qc'),ctx=c.getContext('2d'),last='';
@@ -606,7 +563,7 @@ function onScan(raw){
   saveSes();
 
   // Háttérben szinkronizálás a szerverrel
-  apiPost('submitScan',{kocsi_szam:text,gyartosor:S.gy,fazis:S.faz,cikkszam:S.cs,sokkolo:S.sk||S.gy})
+  apiPost('submitScan',{kocsi_szam:text,gyartosor:S.gy,fazis:S.faz,cikkszam:S.cs||'',sokkolo:S.sk||''})
     .then(function(r){
       if(r&&r.duplicate){
         // Szerver duplikált - visszavonjuk
@@ -649,8 +606,6 @@ document.addEventListener('DOMContentLoaded',function(){
     if(this.value.length===4)doLogin();
   });
   document.getElementById('m-faz').addEventListener('change',updSkRow);
-  on('btn-mode-cam', function(){ setMode('cam'); });
-  on('btn-mode-hid', function(){ setMode('hid'); });
   document.getElementById('m-tsrch').addEventListener('input',function(){filterT(this.value);});
 
   history.pushState(null,'');
