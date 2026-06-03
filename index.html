@@ -68,6 +68,7 @@ select[size]{height:auto;padding:.25rem 0!important;font-size:clamp(.85rem,3vw,1
 .hdr-btn.exit{background:rgba(239,68,68,.25);
   border-color:rgba(239,68,68,.45);color:#fca5a5}
 .hdr-btn:active{transform:scale(.93)}
+.hdr-btn.active-mode{background:rgba(56,189,248,.3);border-color:rgba(56,189,248,.6);color:#38bdf8}
 video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 canvas#qc{display:none}
 .qr-box{position:absolute;top:50%;left:50%;
@@ -172,9 +173,17 @@ canvas#qc{display:none}
 <div class="pg" id="pg-scan">
   <div class="sc-hdr">
     <div class="sc-bdg" id="m-bdg"></div>
+    <!-- Mód váltó -->
+    <div style="display:flex;background:rgba(255,255,255,.08);border-radius:8px;padding:2px;gap:2px;flex-shrink:0">
+      <button class="hdr-btn active-mode" id="btn-mode-cam" style="min-width:auto;padding:.4rem .7rem;font-size:.75rem;border:none">📷</button>
+      <button class="hdr-btn" id="btn-mode-hid" style="min-width:auto;padding:.4rem .7rem;font-size:.75rem;border:none" title="USB/Bluetooth scanner">⌨️</button>
+    </div>
     <button class="hdr-btn" id="btn-stp">⚙️</button>
     <button class="hdr-btn exit" id="btn-exit">🚪 Ki</button>
   </div>
+  <!-- HID scanner rejtett input (billentyűzet mód) -->
+  <input id="hid-input" type="text" autocomplete="off" autocorrect="off"
+    spellcheck="false" style="position:fixed;left:-9999px;top:0;opacity:0;width:1px;height:1px">
   <video id="qv" autoplay playsinline muted></video>
   <canvas id="qc"></canvas>
   <div class="qr-box"><div class="scan-line"></div></div>
@@ -452,11 +461,19 @@ function goScan(){
     '<span class="bdg">🔄 '+S.faz+'</span>'+
     (S.sk?'<span class="bdg">🧊 '+S.sk+'</span>':'')+
     (S.cs?'<span class="bdg">📦 '+S.cs+'</span>':'');
+  // Scan szám visszatöltése localStorage-ból (frissítés után is megmarad)
+  try {
+    var savedCnt = localStorage.getItem('scan_cnt_' + S.gy);
+    if (savedCnt) S.cnt = parseInt(savedCnt) || 0;
+  } catch(e) {}
   document.getElementById('m-cnt').textContent=S.cnt;
   document.getElementById('m-last').textContent='';
   setStatus('idle','Tartsd a QR kódot a keretbe');
   showPg('pg-scan');
-  startCam();
+  // Mentett mód visszaállítása
+  var savedMode = 'cam';
+  try { savedMode = localStorage.getItem('scan_mode') || 'cam'; } catch(e){}
+  setMode(savedMode);
 }
 
 function startCam(){
@@ -482,6 +499,67 @@ function stopCam(){
   if(S.raf){cancelAnimationFrame(S.raf);S.raf=null;}
   if(S.stream){S.stream.getTracks().forEach(function(t){t.stop();});S.stream=null;}
   var v=document.getElementById('qv'); if(v)v.srcObject=null;
+}
+
+var _hidBuf='', _hidTimer=null;
+function startHID(){
+  // HID/Bluetooth scanner: billentyűzetként gépeli a kódot + Enter
+  var inp = document.getElementById('hid-input');
+  if (!inp) return;
+  inp.value='';
+  inp.focus();
+  // Folyamatosan visszafókuszál
+  S._hidInterval = setInterval(function(){
+    var active = document.querySelector('.pg.on');
+    if (active && active.id==='pg-scan') inp.focus();
+  }, 1500);
+  inp.oninput = function(){
+    _hidBuf = inp.value;
+    clearTimeout(_hidTimer);
+    // Ha 80ms-en belül nem jön több karakter = kész
+    _hidTimer = setTimeout(function(){
+      var val = _hidBuf.replace(/\n|\r/g,'').trim();
+      if (val.length >= 3) onScan(val);
+      inp.value=''; _hidBuf=''; inp.focus();
+    }, 80);
+  };
+  inp.onkeydown = function(e){
+    if (e.key==='Enter'){
+      var val=inp.value.replace(/\n|\r/g,'').trim();
+      if(val.length>=3) onScan(val);
+      inp.value=''; _hidBuf=''; inp.focus();
+    }
+  };
+}
+
+function stopHID(){
+  clearInterval(S._hidInterval);
+  var inp=document.getElementById('hid-input');
+  if(inp){ inp.oninput=null; inp.onkeydown=null; }
+}
+
+function setMode(mode){
+  S.scanMode = mode;
+  var camBtn = document.getElementById('btn-mode-cam');
+  var hidBtn = document.getElementById('btn-mode-hid');
+  var video  = document.getElementById('qv');
+  var qrbox  = document.querySelector('.qr-box');
+  if(camBtn) camBtn.classList.toggle('active-mode', mode==='cam');
+  if(hidBtn) hidBtn.classList.toggle('active-mode', mode==='hid');
+  try { localStorage.setItem('scan_mode', mode); } catch(e){}
+  if(mode==='cam'){
+    stopHID();
+    if(video) video.style.display='';
+    if(qrbox) qrbox.style.display='';
+    startCam();
+    setStatus('idle','Tartsd a QR kódot a keretbe');
+  } else {
+    stopCam();
+    if(video) video.style.display='none';
+    if(qrbox) qrbox.style.display='none';
+    startHID();
+    setStatus('idle','⌨️ USB/BT scanner: olvasd be a QR kódot');
+  }
 }
 
 function startDecode(){
@@ -571,6 +649,8 @@ document.addEventListener('DOMContentLoaded',function(){
     if(this.value.length===4)doLogin();
   });
   document.getElementById('m-faz').addEventListener('change',updSkRow);
+  on('btn-mode-cam', function(){ setMode('cam'); });
+  on('btn-mode-hid', function(){ setMode('hid'); });
   document.getElementById('m-tsrch').addEventListener('input',function(){filterT(this.value);});
 
   history.pushState(null,'');
