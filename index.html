@@ -201,8 +201,8 @@ function api(action, params) {
     // Timeout (10 mp)
     var timer = setTimeout(function() {
       cleanup();
-      reject(new Error('Időtúllépés - ellenőrizd a GAS deploymentet!'));
-    }, 10000);
+      reject(new Error('Időtúllépés (6s) - GAS lassú vagy nincs deploy!'));
+    }, 6000);
 
     function cleanup() {
       clearTimeout(timer);
@@ -270,20 +270,25 @@ function clearSes(){
 
 // LOGIN
 function loadGy(){
+  showErr('');
+  if(S.md){ fillGySel(S.md); return; } // cache
   var sel=document.getElementById('m-gy');
   sel.innerHTML='<option>Betöltés...</option>';
-  showErr('');
   api('getMasterData').then(function(d){
-    S.md=d;
-    sel.innerHTML='<option value="">Válassz gyártósort...</option>';
-    (d.gyartosok||[]).forEach(function(g){
-      var o=document.createElement('option');
-      o.value=o.textContent=g['Nev']||g['Név']||'';
-      sel.appendChild(o);
-    });
+    S.md=d; fillGySel(d);
   }).catch(function(e){
-    sel.innerHTML='<option value="">Hiba!</option>';
-    showErr('Betöltési hiba: '+e.message);
+    var sel2=document.getElementById('m-gy');
+    if(sel2) sel2.innerHTML='<option value="">Hiba!</option>';
+    showErr('Hiba: '+e.message);
+  });
+}
+function fillGySel(d){
+  var sel=document.getElementById('m-gy'); if(!sel)return;
+  sel.innerHTML='<option value="">Válassz gyártósort...</option>';
+  (d.gyartosok||[]).forEach(function(g){
+    var o=document.createElement('option');
+    o.value=o.textContent=g['Nev']||g['Nev']||g['Név']||'';
+    sel.appendChild(o);
   });
 }
 
@@ -308,7 +313,11 @@ function doLogin(){
 // SETUP
 function fillSetup(){
   var d=S.md;
-  if(!d){api('getMasterData').then(function(md){S.md=md;fillSetup();});return;}
+  if(!d){
+    api('getMasterData').then(function(md){S.md=md;fillSetup();})
+      .catch(function(e){showToast('Betöltési hiba: '+e.message,4000);});
+    return;
+  }
   var fs=document.getElementById('m-faz');
   fs.innerHTML='<option value="">— Válassz fázist —</option>';
   (d.fazisok||[]).sort(function(a,b){return(+a['Sorrend']||0)-(+b['Sorrend']||0);})
