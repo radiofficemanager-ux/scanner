@@ -167,6 +167,7 @@ var GAS_URL = 'https://script.google.com/macros/s/AKfycbwRIhFZnwY2RkA_WdBu-mnlyT
       class="pin" placeholder="●●●●" autocomplete="off">
     <div class="err" id="m-err"></div>
     <button class="btn btn-blue" id="btn-login">⚡ Belépés</button>
+    <button class="btn btn-gray" id="btn-test" style="font-size:.85rem;min-height:40px;opacity:.7">🔍 Kapcsolat teszt</button>
   </div>
 </div>
 
@@ -223,15 +224,19 @@ var S = {
 // ══ GAS API HÍVÁS (fetch) ═════════════════════════════════
 function api(action, data) {
   var body = Object.assign({ action: action, token: S.token || '' }, data || {});
+  // Content-Type: text/plain -> nincs CORS preflight, GAS elfogadja
   return fetch(GAS_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     redirect: 'follow',
   }).then(function(r) {
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
-  }).then(function(j) {
+    return r.text();  // text-ként olvassuk, majd parsolunk
+  }).then(function(txt) {
+    // GAS néha HTML redirect oldalt ad vissza JSON helyett
+    if (!txt || txt.trim()[0] !== '{') {
+      throw new Error('GAS nem JSON választ adott. Ellenőrizd a deployment-et és a GAS_URL-t!');
+    }
+    var j = JSON.parse(txt);
     if (j && j.ok === false) throw new Error(j.error || 'Szerverhiba');
     return (j && j.result !== undefined) ? j.result : j;
   });
@@ -282,8 +287,11 @@ function loadGy() {
       sel.appendChild(o);
     });
   }).catch(function(e) {
-    sel.innerHTML = '<option value="">Hiba - frissíts!</option>';
-    showToast('Betöltési hiba: ' + e.message, 4000);
+    sel.innerHTML = '<option value="">Hiba!</option>';
+    // Részletes hiba megjelenítése a képernyőn
+    document.getElementById('m-err').textContent = e.message;
+    document.getElementById('m-err').style.display = 'block';
+    showToast(e.message, 6000);
   });
 }
 
@@ -494,6 +502,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
   document.getElementById('m-pin').addEventListener('input', function(){
     if (this.value.length === 4) doLogin();
+  });
+  document.getElementById('btn-test').addEventListener('click', function() {
+    var errEl = document.getElementById('m-err');
+    errEl.textContent = 'Tesztelés...'; errEl.style.display='block';
+    // 1. Ping teszt
+    fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'ping' }),
+      redirect: 'follow',
+    })
+    .then(function(r) { return r.text(); })
+    .then(function(txt) {
+      errEl.textContent = 'Válasz (' + txt.length + ' kar): ' + txt.substring(0,120);
+    })
+    .catch(function(e) {
+      errEl.textContent = 'FETCH HIBA: ' + e.message + ' | GAS_URL: ' + GAS_URL.substring(0,60);
+    });
   });
   document.getElementById('m-faz').addEventListener('change', updSkRow);
   document.getElementById('m-tsrch').addEventListener('input', function(){
