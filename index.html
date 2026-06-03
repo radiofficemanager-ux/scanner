@@ -457,8 +457,9 @@ function filterT(q){
 
 function updSkRow(){
   var faz=document.getElementById('m-faz').value;
-  var isSorvege  = (faz==='Sorvége'  || faz==='Sorvege');
-  var isSokkolas = (faz==='Sokkolás' || faz==='Sokkolas');
+  var isSorvege  = faz.toLowerCase().replace(/[^a-z]/g,'').indexOf('sorveg') >= 0;
+  // Encoding-független Sokkolás detektálás
+  var isSokkolas = faz.toLowerCase().replace(/[^a-z]/g,'').indexOf('sokkol') >= 0;
   var tRow = document.getElementById('termek-row');
   var sRow = document.getElementById('sokkolo-row');
   // Régi sk-row kompatibilitás
@@ -478,8 +479,10 @@ function doStart(){
   var faz=document.getElementById('m-faz').value;
   var cs =document.getElementById('m-cs')  ? document.getElementById('m-cs').value  : '';
   var sk =document.getElementById('m-sk')  ? document.getElementById('m-sk').value  : '';
-  var isSorvege  = (faz==='Sorvége'  || faz==='Sorvege');
-  var isSokkolas = (faz==='Sokkolás' || faz==='Sokkolas');
+  var faz_low    = faz.toLowerCase().replace(/[^a-z]/g,'');
+  var isSorvege  = faz_low.indexOf('sorveg') >= 0;
+  // Encoding-független Sokkolás detektálás
+  var isSokkolas = faz.toLowerCase().replace(/[^a-z]/g,'').indexOf('sokkol') >= 0;
   if (!faz) { showToast('Válassz fázist!'); return; }
   if (isSorvege  && !cs) { showToast('Sorvégén kötelező a termék kiválasztása!'); return; }
   if (isSokkolas && !sk) { showToast('Sokkoláshoz válassz sokkoló gépet!'); return; }
