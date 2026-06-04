@@ -476,21 +476,19 @@ function filterT(q){
 }
 
 function updSkRow(){
-  var faz=document.getElementById('m-faz').value;
+  var fazEl = document.getElementById('m-faz');
+  if (!fazEl) return;
+  var faz        = fazEl.value || '';
+  var fazN       = norm_s(faz);  // ELŐSZÖR definiáljuk!
   var isSorvege  = fazN.indexOf('sorveg') >= 0;
-  var fazN = norm(faz);
   var isSokkolas = fazN.indexOf('sokkol') >= 0;
   var tRow = document.getElementById('termek-row');
   var sRow = document.getElementById('sokkolo-row');
-  // Régi sk-row kompatibilitás
-  var oldSk = document.getElementById('sk-row');
   if (tRow) tRow.style.display = isSorvege  ? '' : 'none';
   if (sRow) sRow.style.display = isSokkolas ? '' : 'none';
-  if (oldSk) oldSk.style.display = 'none'; // már nem kell
-  // Ha nem sorvége: cikkszám törlése (rendszer keresi meg)
   if (!isSorvege) {
     var cs = document.getElementById('m-cs');
-    if (cs) { cs.innerHTML='<option value="">(auto)</option>'; }
+    if (cs) cs.innerHTML = '<option value="">(auto – rendszer keresi)</option>';
     S.cs = '';
   }
 }
