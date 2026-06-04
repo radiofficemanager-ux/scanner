@@ -396,12 +396,30 @@ function doLogin(){
     fillSetup(); showPg('pg-setup');
     showToast('Üdvözöljük! Műszak: '+r.muszak);
   }).catch(function(e){
-    showErr(e.message);
+    var msg = (e && e.message) ? e.message : 'Ismeretlen hiba';
+    // GAS hibák fordítása
+    if (msg.indexOf('Hibás PIN') >= 0 || msg.toLowerCase().indexOf('pin') >= 0) {
+      showErr('❌ Hibás PIN kód! ' + msg.replace('Hibás PIN.','').trim());
+    } else if (msg.indexOf('Zárolva') >= 0 || msg.indexOf('zárolva') >= 0) {
+      showErr('🔒 Eszköz zárolva! Admin segítség szükséges.');
+    } else if (msg.indexOf('Nincs aktív') >= 0) {
+      showErr('⚠️ Nincs regisztrált eszköz ehhez a gyártósorhoz.');
+    } else {
+      showErr('❌ ' + msg);
+    }
     document.getElementById('m-pin').value='';
   }).finally(function(){btn.innerHTML='⚡ Belépés'; btn.disabled=false;});
 }
 
 // SETUP
+function norm_s(s) {
+  if (!s) return '';
+  return String(s).toLowerCase()
+    .replace(/á/g,'a').replace(/é/g,'e').replace(/í/g,'i')
+    .replace(/[óöő]/g,'o').replace(/[úüű]/g,'u')
+    .replace(/[^a-z0-9]/g,'');
+}
+
 function fillSetup(){
   var d=S.md;
   if(!d){
@@ -460,14 +478,6 @@ function filterT(q){
 function updSkRow(){
   var faz=document.getElementById('m-faz').value;
   var isSorvege  = fazN.indexOf('sorveg') >= 0;
-  // Normalizálás: ékezetes → alap betű (nem törlés!)
-  function norm(s) {
-    return s.toLowerCase()
-      .replace(/[áàâä]/g,'a').replace(/[éèêë]/g,'e')
-      .replace(/[íîï]/g,'i').replace(/[óôöő]/g,'o')
-      .replace(/[úûüű]/g,'u').replace(/[ý]/g,'y')
-      .replace(/[^a-z0-9]/g,'');
-  }
   var fazN = norm(faz);
   var isSokkolas = fazN.indexOf('sokkol') >= 0;
   var tRow = document.getElementById('termek-row');
@@ -486,11 +496,11 @@ function updSkRow(){
 }
 
 function doStart(){
-  var faz=document.getElementById('m-faz').value;
+  var faz=document.getElementById('m-faz') ? document.getElementById('m-faz').value : '';
   var cs =document.getElementById('m-cs')  ? document.getElementById('m-cs').value  : '';
   var sk =document.getElementById('m-sk')  ? document.getElementById('m-sk').value  : '';
-  function normFaz(s){return s.toLowerCase().replace(/[áàâä]/g,'a').replace(/[éèêë]/g,'e').replace(/[íîï]/g,'i').replace(/[óôöő]/g,'o').replace(/[úûüű]/g,'u').replace(/[^a-z0-9]/g,'');}
-  var fazN2     = normFaz(faz);
+  var fazN2      = norm_s(faz);
+  var isSorvege  = fazN2.indexOf('sorveg') >= 0;
   var isSorvege  = fazN2.indexOf('sorveg') >= 0;
   // Normalizálás: ékezetes → alap betű (nem törlés!)
   function norm(s) {
