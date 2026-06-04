@@ -157,17 +157,12 @@ canvas#qc{display:none}
     <div class="setup-title">⚙️ Állomás beállítása</div>
     <label class="lbl">Fázis</label>
     <select id="m-faz"><option value="">— Válassz —</option></select>
-    <div id="sk-row" style="display:none">
-      <label class="lbl">Sokkoló gép</label>
-      <select id="m-sk"><option value="">— Válassz —</option></select>
-    </div>
     <!-- Termék: csak Sorvége fázisnál -->
     <div id="termek-row" style="display:none">
       <label class="lbl">Termék kiválasztása <span style="color:#f87171">*kötelező</span></label>
       <input id="m-tsrch" type="text" placeholder="Cikkszám vagy termék neve...">
       <select id="m-cs" size="4"></select>
     </div>
-    <!-- Sokkoló: csak Sokkolás fázisnál -->
     <!-- Sokkoló: csak Sokkolás fázisnál -->
     <div id="sokkolo-row" style="display:none">
       <label class="lbl" style="margin-top:.5rem">
@@ -426,14 +421,21 @@ function fillSetup(){
       if(S.faz&&o.value===S.faz)o.selected=true;
       fs.appendChild(o);
     });
-  var ss=document.getElementById('m-sk');
-  ss.innerHTML='<option value="">— Válassz gépet —</option>';
-  (d.sokkolo_gep||[]).forEach(function(n){
-    var o=document.createElement('option');
-    o.value=o.textContent=n;
-    if(S.sk&&o.value===S.sk)o.selected=true;
-    ss.appendChild(o);
-  });
+  var ss = document.getElementById('m-sk');
+  if (ss) {
+    var skGep = d.sokkolo_gep || [];
+    ss.innerHTML = '<option value="">— Válassz sokkolót —</option>';
+    skGep.forEach(function(n, i) {
+      var o = document.createElement('option');
+      o.value = n;
+      o.textContent = (i + 1) + '. ' + n;
+      if (S.sk && S.sk === n) o.selected = true;
+      ss.appendChild(o);
+    });
+    if (skGep.length === 0) {
+      ss.innerHTML += '<option disabled>⚠️ Nincs sokkoló konfigurálva</option>';
+    }
+  }
   S.termekek=(d.termekek||[]).filter(function(t){return t.Aktiv!==false;});
   filterT(''); updSkRow();
 }
