@@ -280,8 +280,8 @@ function api(action, params) {
     // Timeout (10 mp)
     var timer = setTimeout(function() {
       cleanup();
-      reject(new Error('Időtúllépés (6s) - GAS lassú vagy nincs deploy!'));
-    }, 6000);
+      reject(new Error('Időtúllépés - próbáld újra'));
+    }, 20000);
 
     function cleanup() {
       clearTimeout(timer);
