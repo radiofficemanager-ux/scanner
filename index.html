@@ -496,25 +496,15 @@ function updSkRow(){
 }
 
 function doStart(){
-  var faz=document.getElementById('m-faz') ? document.getElementById('m-faz').value : '';
-  var cs =document.getElementById('m-cs')  ? document.getElementById('m-cs').value  : '';
-  var sk =document.getElementById('m-sk')  ? document.getElementById('m-sk').value  : '';
-  var fazN2      = norm_s(faz);
-  var isSorvege  = fazN2.indexOf('sorveg') >= 0;
-  var isSorvege  = fazN2.indexOf('sorveg') >= 0;
-  // Normalizálás: ékezetes → alap betű (nem törlés!)
-  function norm(s) {
-    return s.toLowerCase()
-      .replace(/[áàâä]/g,'a').replace(/[éèêë]/g,'e')
-      .replace(/[íîï]/g,'i').replace(/[óôöő]/g,'o')
-      .replace(/[úûüű]/g,'u').replace(/[ý]/g,'y')
-      .replace(/[^a-z0-9]/g,'');
-  }
-  var fazN = norm(faz);
-  var isSokkolas = fazN.indexOf('sokkol') >= 0;
-  if (!faz) { showToast('Válassz fázist!'); return; }
-  if (isSorvege  && !cs) { showToast('Sorvégén kötelező a termék kiválasztása!'); return; }
-  if (isSokkolas && !sk) { showToast('Sokkoláshoz válassz sokkoló gépet!'); return; }
+  var faz = document.getElementById('m-faz') ? document.getElementById('m-faz').value : '';
+  var cs  = document.getElementById('m-cs')  ? document.getElementById('m-cs').value  : '';
+  var sk  = document.getElementById('m-sk')  ? document.getElementById('m-sk').value  : '';
+  var fn  = norm_s(faz);
+  var isSorvege  = fn.indexOf('sorveg') >= 0;
+  var isSokkolas = fn.indexOf('sokkol') >= 0;
+  if (!faz)                    { showToast('Válassz fázist!'); return; }
+  if (isSorvege  && !cs)       { showToast('Sorvégén kötelező a termék kiválasztása!'); return; }
+  if (isSokkolas && !sk)       { showToast('Sokkoláshoz válassz sokkoló gépet!'); return; }
   S.faz=faz; S.cs=isSorvege?cs:''; S.sk=isSokkolas?sk:'';
   saveSes(); goScan();
 }
