@@ -439,22 +439,43 @@ function fillSetup(){
   if (!fs) return;
   var gyN       = norm_s(S.gy || '');
   var isFazValt = gyN.indexOf('fazi') >= 0 && (gyN.indexOf('valtas') >= 0 || gyN.indexOf('valt') >= 0);
-  fs.innerHTML  = '<option value="">— Válassz fázist —</option>';
-  (d.fazisok||[]).sort(function(a,b){return(+a['Sorrend']||0)-(+b['Sorrend']||0);})
-    .forEach(function(f){
+
+  if (!isFazValt) {
+    // ── GYÁRTÓSOR: csak Sorvége látható, automatikusan kiválasztva ──
+    // Keressük meg a Sorvége fázist
+    var sorvegeFaz = '';
+    (d.fazisok||[]).forEach(function(f){
       var nev = f['Nev']||f['Név']||'';
-      // Fázisváltás soron: Sorvége nem elérhető
-      if (isFazValt && norm_s(nev).indexOf('sorveg') >= 0) return;
-      var o=document.createElement('option');
-      o.value=o.textContent=nev;
-      if(S.faz && o.value===S.faz) o.selected=true;
-      fs.appendChild(o);
+      if (norm_s(nev).indexOf('sorveg') >= 0 && !sorvegeFaz) sorvegeFaz = nev;
     });
-  // Normál gyártósoron: Sorvége alapértelmezett
-  if (!isFazValt && !S.faz) {
-    for (var fi=0;fi<fs.options.length;fi++) {
-      if (norm_s(fs.options[fi].value).indexOf('sorveg')>=0){fs.options[fi].selected=true;break;}
-    }
+    // Ha van már kiválasztott fázis (session) és az nem Sorvége → tartsuk meg
+    // Ha nincs vagy Sorvége az egyetlen opció → auto Sorvége
+    var targetFaz = (S.faz && norm_s(S.faz).indexOf('sorveg') >= 0) ? S.faz : sorvegeFaz;
+    fs.innerHTML = '';
+    var o = document.createElement('option');
+    o.value = o.textContent = targetFaz;
+    o.selected = true;
+    fs.appendChild(o);
+    S.faz = targetFaz; // állapot frissítése
+    // Fázisváltó gombok elrejtése - normál soron csak Sorvége
+    fs.style.display = 'none'; // nem kell megmutatni, egyértelmű
+    var fazLbl = fs.previousElementSibling;
+    if (fazLbl && fazLbl.tagName === 'LABEL') fazLbl.style.display = 'none';
+  } else {
+    // ── FÁZISVÁLTÁS ÁLLOMÁS: minden fázis kivéve Sorvége ──
+    fs.style.display = '';
+    var fazLbl2 = fs.previousElementSibling;
+    if (fazLbl2 && fazLbl2.tagName === 'LABEL') fazLbl2.style.display = '';
+    fs.innerHTML = '<option value="">— Válassz fázist —</option>';
+    (d.fazisok||[]).sort(function(a,b){return(+a['Sorrend']||0)-(+b['Sorrend']||0);})
+      .forEach(function(f){
+        var nev = f['Nev']||f['Név']||'';
+        if (norm_s(nev).indexOf('sorveg') >= 0) return; // Sorvége nem elérhető
+        var o = document.createElement('option');
+        o.value = o.textContent = nev;
+        if (S.faz && o.value === S.faz) o.selected = true;
+        fs.appendChild(o);
+      });
   }
   var ss = document.getElementById('m-sk');
   if (ss) {
@@ -502,8 +523,12 @@ function filterT(q){
 function updSkRow(){
   var fazEl = document.getElementById('m-faz');
   if (!fazEl) return;
-  var faz        = fazEl.value || '';
-  var fazN       = norm_s(faz);  // ELŐSZÖR definiáljuk!
+  var faz = fazEl.value || '';
+  // Ha a fázis select rejtett, az automatikusan Sorvége (gyártósor mód)
+  if (fazEl.style.display === 'none') {
+    faz = fazEl.options[0] ? fazEl.options[0].value : faz;
+  }
+  var fazN       = norm_s(faz);
   var isSorvege  = fazN.indexOf('sorveg') >= 0;
   var isSokkolas = fazN.indexOf('sokkol') >= 0;
   var tRow = document.getElementById('termek-row');
