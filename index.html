@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kiosk Scanner">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="manifest" href="manifest.json">
 <title>Kiosk Scanner</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
@@ -431,15 +435,27 @@ function fillSetup(){
   // Gyártósor label
   var gyLbl=document.getElementById('setup-gy-label');
   if(gyLbl) gyLbl.textContent=S.gy||'—';
-  var fs=document.getElementById('m-faz');
-  fs.innerHTML='<option value="">— Válassz fázist —</option>';
+  var fs = document.getElementById('m-faz');
+  if (!fs) return;
+  var gyN       = norm_s(S.gy || '');
+  var isFazValt = gyN.indexOf('fazi') >= 0 && (gyN.indexOf('valtas') >= 0 || gyN.indexOf('valt') >= 0);
+  fs.innerHTML  = '<option value="">— Válassz fázist —</option>';
   (d.fazisok||[]).sort(function(a,b){return(+a['Sorrend']||0)-(+b['Sorrend']||0);})
     .forEach(function(f){
+      var nev = f['Nev']||f['Név']||'';
+      // Fázisváltás soron: Sorvége nem elérhető
+      if (isFazValt && norm_s(nev).indexOf('sorveg') >= 0) return;
       var o=document.createElement('option');
-      o.value=o.textContent=f['Nev']||f['Név']||'';
-      if(S.faz&&o.value===S.faz)o.selected=true;
+      o.value=o.textContent=nev;
+      if(S.faz && o.value===S.faz) o.selected=true;
       fs.appendChild(o);
     });
+  // Normál gyártósoron: Sorvége alapértelmezett
+  if (!isFazValt && !S.faz) {
+    for (var fi=0;fi<fs.options.length;fi++) {
+      if (norm_s(fs.options[fi].value).indexOf('sorveg')>=0){fs.options[fi].selected=true;break;}
+    }
+  }
   var ss = document.getElementById('m-sk');
   if (ss) {
     var skGep = d.sokkolo_gep || [];
@@ -456,6 +472,10 @@ function fillSetup(){
     }
   }
   S.termekek=(d.termekek||[]).filter(function(t){return t.Aktiv!==false;});
+  // Utolsó termék visszatöltése ha nincs session
+  if (!S.cs && S.gy) {
+    try { S.cs = localStorage.getItem('last_cs_'+S.gy) || ''; } catch(e){}
+  }
   filterT(''); updSkRow();
 }
 
