@@ -161,7 +161,8 @@ canvas#qc{display:none}
     <div id="termek-row" style="display:none">
       <label class="lbl">Termék kiválasztása <span style="color:#f87171">*kötelező</span></label>
       <input id="m-tsrch" type="text" placeholder="Cikkszám vagy termék neve...">
-      <select id="m-cs" size="4"></select>
+      <select id="m-cs" size="6"
+        style="font-size:clamp(.9rem,3.2vw,1rem);line-height:1.8;min-height:180px"></select>
     </div>
     <!-- Sokkoló: csak Sokkolás fázisnál -->
     <div id="sokkolo-row" style="display:none">
@@ -469,7 +470,10 @@ function filterT(q){
   list.forEach(function(t){
     var o=document.createElement('option');
     o.value=t.Cikkszam||'';
-    o.textContent=(t.Cikkszam||'')+' – '+(t.Nev||'');
+    o.style.padding='4px 0';
+    var cs  = t.Cikkszam || '';
+    var nev = t.Nev      || '';
+    o.textContent = cs + (nev ? '  –  ' + nev : '');
     if(S.cs&&o.value===S.cs)o.selected=true;
     sel.appendChild(o);
   });
