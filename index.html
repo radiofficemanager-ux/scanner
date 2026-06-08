@@ -444,6 +444,8 @@ function fillSetup(){
   // Fázisváltás típus: "fázis_váltás" VAGY "csomagol" nevű gyártósor
   var isFazValt = (gyN.indexOf('fazi') >= 0 && (gyN.indexOf('valtas') >= 0 || gyN.indexOf('valt') >= 0))
                || gyN.indexOf('csomag') >= 0;
+  // Mosás típus: "mos" nevű gyártósor
+  var isMosas = gyN.indexOf('mos') >= 0 && gyN.indexOf('mosov') < 0;
 
   if (!isFazValt) {
     // ── GYÁRTÓSOR: csak Sorvége látható, automatikusan kiválasztva ──
@@ -737,6 +739,31 @@ function startDecode(){
 var _recentScans = [];
 
 function onScan(raw){
+  // MOSÁS MÓD: egyszerű scan
+  var _gyN = (S.gy||'').toLowerCase().replace(/[áéíóöőúüű]/g,function(c){
+    return {á:'a',é:'e',í:'i',ó:'o',ö:'o',ő:'o',ú:'u',ü:'u',ű:'u'}[c]||c;});
+  if (_gyN.indexOf('mos') >= 0) {
+    if(S.busy)return;
+    var _kocsi = raw.trim().toUpperCase();
+    if(!_kocsi||_kocsi.length<2)return;
+    S.busy=true;
+    apiPost('submitMosas',{token:S.token,kocsi:_kocsi,eszkoz:S.gy}).then(function(r){
+      S.busy=false; S.cnt++;
+      document.getElementById('m-cnt').textContent=S.cnt;
+      if(r&&r.dupla){
+        setStatus('warn','⚠️ '+_kocsi+' – '+(r.message||'már mosva'));
+        beepDUP();
+      } else {
+        setStatus('ok','🚿 '+_kocsi+' – Lemosva ✅');
+        beepOK(); doFlash('ok');
+      }
+    }).catch(function(e){
+      S.busy=false;
+      setStatus('err','Hiba: '+(e.message||'?'));
+    });
+    return;
+  }
+
   if(S.busy)return;
   var text=raw.trim().toUpperCase();
   if(!text||text.length<2)return;
