@@ -187,7 +187,7 @@ canvas#qc{display:none}
 <div class="pg" id="pg-scan">
   <div class="sc-hdr">
     <div class="sc-bdg" id="m-bdg"></div>
-    <button class="hdr-btn" id="btn-torch" style="display:none" title="Vaku">🔦</button>
+    <button class="hdr-btn" id="btn-torch" style="display:none" title="Vaku BE" onclick="toggleTorch()">🔦</button>
   <button class="hdr-btn" id="btn-stp">⚙️</button>
     <button class="hdr-btn exit" id="btn-exit">🚪 Ki</button>
   </div>
@@ -608,58 +608,41 @@ var _torchTrack = null;
 var _torchIdx   = 0;
 
 function initTorch(stream) {
+  // Hátsó kamera esetén megmutatjuk a gombot
   var tracks = stream.getVideoTracks();
   if (!tracks.length) return;
-  _torchTrack = tracks[0];
-
-  // Gyors ellenőrzés: getSupportedConstraints
-  var sup = navigator.mediaDevices.getSupportedConstraints
-    ? navigator.mediaDevices.getSupportedConstraints()
-    : {};
-
   var btn = document.getElementById('btn-torch');
-  if (!btn) return;
-
-  if (sup.torch) {
-    // Biztosan támogatja
-    btn.style.display = '';
-  } else {
-    // Nem biztos, de megmutatjuk – kattintáskor derül ki
-    btn.style.display = '';
-    btn.style.opacity = '0.6';
-    btn.title = 'Vaku (eszközfüggő)';
-  }
+  if (btn) btn.style.display = '';
 }
 
 
 function toggleTorch() {
-  if (!_torchTrack) { showToast('Kamera nem elérhető', 2000); return; }
+  // Mindig a jelenlegi stream-ből vesszük a track-et
+  if (!S.stream) { showToast('Kamera nem aktív', 1500); return; }
+  var tracks = S.stream.getVideoTracks();
+  if (!tracks.length) { showToast('Nincs kamera track', 1500); return; }
+  var track = tracks[0];
 
   _torchOn = !_torchOn;
 
-  var btn = document.getElementById('btn-torch');
-
-  // Chrome Android: applyConstraints advanced formátum
-  var promise = _torchTrack.applyConstraints({
-    advanced: [{ torch: _torchOn }]
-  });
-
-  promise.then(function() {
-    if (btn) {
-      btn.textContent      = _torchOn ? '💡' : '🔦';
-      btn.style.background = _torchOn ? 'rgba(255,220,0,.4)' : '';
-      btn.style.color      = _torchOn ? '#fde68a' : '';
-      btn.style.opacity    = '1';
-    }
-  }).catch(function(err) {
-    // Ha applyConstraints nem megy, próbáljuk stream újraindítással
-    _torchOn = !_torchOn;  // visszaállítás
-    if (btn) btn.style.opacity = '1';
-
-    // Utolsó esély: kamerát újraindítjuk torch kéréssel
-    restartCamWithTorch(_torchOn);
-  });
+  track.applyConstraints({ advanced: [{ torch: _torchOn }] })
+    .then(function() {
+      var btn = document.getElementById('btn-torch');
+      if (btn) {
+        btn.textContent      = _torchOn ? '💡' : '🔦';
+        btn.style.background = _torchOn ? 'rgba(255,220,0,.4)' : '';
+        btn.style.color      = _torchOn ? '#fde68a' : '';
+        btn.title            = _torchOn ? 'Vaku KI' : 'Vaku BE';
+      }
+    })
+    .catch(function(e) {
+      _torchOn = !_torchOn;
+      showToast('Vaku nem támogatott: ' + (e.name || e.message), 2500);
+      var btn = document.getElementById('btn-torch');
+      if (btn) btn.style.display = 'none';
+    });
 }
+
 
 function restartCamWithTorch(torchOn) {
   // Stream leállítása
