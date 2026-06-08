@@ -410,6 +410,9 @@ function doLogin(){
       startCam(); showPg('pg-scan');
       document.getElementById('m-bdg').textContent  = '🚿 MOSÁS';
       document.getElementById('m-bdg').style.background = '#0ea5e9';
+      // Beállítások gomb elrejtése – mosásnál nincs fázisváltás
+      var stpBtn = document.getElementById('btn-stp');
+      if (stpBtn) stpBtn.style.display = 'none';
     } else {
       fillSetup(); showPg('pg-setup');
       showToast('Üdvözöljük! Műszak: '+r.muszak);
@@ -854,7 +857,12 @@ function onScan(raw){
 }
 
 function doExit(){
-  stopCam(); clearSes(); showPg('pg-login');
+  stopCam(); clearSes();
+  var _sb=document.getElementById('btn-stp'); if(_sb) _sb.style.display='';
+  // Beállítások gomb visszaállítása (mosás mód esetén volt elrejtve)
+  var stpBtn = document.getElementById('btn-stp');
+  if (stpBtn) stpBtn.style.display = '';
+  showPg('pg-login');
   document.getElementById('m-pin').value='';
   showErr(''); loadGy();
 }
