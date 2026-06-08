@@ -599,78 +599,69 @@ function startCam(){
   });
 }
 
-// ── VAKU / TORCH ─────────────────────────────────────────────
-var _torchOn = false;
+// ── VAKU / TORCH (Chrome Android) ───────────────────────────
+var _torchOn    = false;
 var _torchTrack = null;
+var _torchIdx   = 0;
 
 function initTorch(stream) {
   var tracks = stream.getVideoTracks();
   if (!tracks.length) return;
-  _torchTrack = tracks[0];
+  var track = tracks[0];
 
-  // Megpróbáljuk megjeleníteni a gombot (ellenőrzés törlve)
-  // Egyes eszközök getCapabilities() nélkül is támogatják
+  // Kamera neve / facing mód: hátsó kameránál mutatjuk
+  var settings = track.getSettings ? track.getSettings() : {};
+  var isBack   = !settings.facingMode || settings.facingMode === 'environment';
+  if (!isBack) return;
+
+  _torchTrack = track;
+  // Gomb megjelenítése - a tényleges torch támogatást kattintáskor derítjük ki
   var btn = document.getElementById('btn-torch');
-
-  // Gyors torch-teszt: próbáljuk be- majd kikapcsolni
-  var testConstraints = [
-    { advanced: [{ torch: true }] },  // Chrome Android
-    { torch: true }                    // Egyéb
-  ];
-
-  function tryApply(idx) {
-    if (idx >= testConstraints.length) {
-      // Egyik sem működött - gomb marad rejtett
-      _torchTrack = null;
-      return;
-    }
-    _torchTrack.applyConstraints(testConstraints[idx])
-      .then(function() {
-        // Siker: gomb megjelenítése, majd visszakapcsol
-        _torchTrack.applyConstraints(
-          idx === 0 ? { advanced: [{ torch: false }] } : { torch: false }
-        ).catch(function(){});
-        _torchConstraint = testConstraints[idx];
-        if (btn) btn.style.display = '';
-        // A munkáló constraint indexe
-        _torchIdx = idx;
-      })
-      .catch(function() { tryApply(idx + 1); });
-  }
-
-  tryApply(0);
+  if (btn) btn.style.display = '';
 }
 
-var _torchConstraint = null;
-var _torchIdx = 0;
 
 function toggleTorch() {
   if (!_torchTrack) {
-    showToast('Vaku nem elérhető ezen az eszközön', 2000);
+    showToast('Vaku nem elérhető', 2000);
     return;
   }
   _torchOn = !_torchOn;
 
-  // Constraint felépítése a munkáló módszer alapján
-  var cons = _torchIdx === 0
-    ? { advanced: [{ torch: _torchOn }] }
-    : { torch: _torchOn };
-
-  _torchTrack.applyConstraints(cons)
+  // Chrome Android: advanced constraint szükséges
+  _torchTrack.applyConstraints({ advanced: [{ torch: _torchOn }] })
     .then(function() {
       var btn = document.getElementById('btn-torch');
-      if (btn) {
-        btn.textContent     = _torchOn ? '💡' : '🔦';
-        btn.style.background = _torchOn ? 'rgba(255,200,0,.35)' : '';
-        btn.style.color      = _torchOn ? '#fde68a' : '';
-        btn.title            = _torchOn ? 'Vaku KI' : 'Vaku BE';
+      if (!btn) return;
+      if (_torchOn) {
+        btn.textContent      = '💡';
+        btn.style.background = 'rgba(255,220,0,.4)';
+        btn.style.color      = '#fde68a';
+        btn.title            = 'Vaku KI';
+      } else {
+        btn.textContent      = '🔦';
+        btn.style.background = '';
+        btn.style.color      = '';
+        btn.title            = 'Vaku BE';
       }
     })
     .catch(function(e) {
-      showToast('Vaku hiba: ' + (e.message || e), 2500);
-      _torchOn = !_torchOn; // visszaállítás
+      // Fallback: próbáljuk advanced nélkül
+      _torchTrack.applyConstraints({ torch: _torchOn })
+        .then(function() {
+          var btn = document.getElementById('btn-torch');
+          if (btn) btn.textContent = _torchOn ? '💡' : '🔦';
+        })
+        .catch(function(e2) {
+          _torchOn = !_torchOn; // visszaállítás
+          showToast('Vaku nem támogatott: ' + (e2.name || e2.message), 2500);
+          // Gomb elrejtése - nem működik
+          var btn = document.getElementById('btn-torch');
+          if (btn) btn.style.display = 'none';
+        });
     });
 }
+
 
 function stopCam(){
   if(S.raf){cancelAnimationFrame(S.raf);S.raf=null;}
