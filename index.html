@@ -399,6 +399,8 @@ function doLogin(){
   btn.innerHTML='<span class="spin"></span>Belépés...'; btn.disabled=true;
   apiPost('kioszkLogin',{gyartosor:gy,pin:pin}).then(function(r){
     S.token=r.token; S.gy=r.gyartosor; saveSes();
+    // PIN mentése auto token-megújításhoz
+    try { localStorage.setItem('gyn_pin', JSON.stringify({gy:gy,pin:pin})); } catch(le){}
     fillSetup(); showPg('pg-setup');
     showToast('Üdvözöljük! Műszak: '+r.muszak);
   }).catch(function(e){
@@ -673,6 +675,23 @@ function restartCamWithTorch(torchOn) {
 
 
 
+// Token lejárat esetén automatikus újra-bejelentkezés
+function autoReLogin() {
+  try {
+    var saved = localStorage.getItem('gyn_pin');
+    if (!saved) { showPg('pg-login'); return; }
+    var ses = JSON.parse(saved);
+    if (!ses.pin || !ses.gy) { showPg('pg-login'); return; }
+    apiPost('kioszkLogin', { gyartosor: ses.gy, pin: ses.pin }).then(function(r) {
+      if (r && r.token) {
+        S.token = r.token;
+        saveSes();
+        showToast('✅ Session megújítva', 2000);
+      } else { showPg('pg-login'); }
+    }).catch(function() { showPg('pg-login'); });
+  } catch(e) { showPg('pg-login'); }
+}
+
 function stopCam(){
   if(S.raf){cancelAnimationFrame(S.raf);S.raf=null;}
   // Vaku kikapcsolás leállítás előtt
@@ -760,8 +779,21 @@ function onScan(raw){
         setStatus('ok','✅ '+text+' → '+S.faz+lezMsg);
       }
     }).catch(function(e){
-      // Timeout/hálózat: helyi OK marad, de jelzés
-      setStatus('ok','✅ '+text+' (szerver: '+(e.message||'timeout')+')');
+      var msg = (e && e.message) ? e.message : 'timeout';
+      // Token hiba → auto megújítás
+      if (msg.toLowerCase().indexOf('rvénytelen') >= 0 ||
+          msg.toLowerCase().indexOf('token') >= 0) {
+        setStatus('warn', '⚠️ Session lejárt, megújítás...');
+        autoReLogin();
+      } else {
+      var _em = (e && e.message) ? e.message : '';
+      if (_em && (_em.indexOf('rvénytelen') >= 0 || _em.indexOf('token') >= 0)) {
+        setStatus('warn','⚠️ Token lejárt, megújítás...');
+        setTimeout(autoReLogin, 1200);
+        return;
+      }
+        setStatus('ok','✅ '+text+' (szerver: '+msg+')');
+      }
     }).finally(function(){
       setTimeout(function(){S.busy=false;},300); // rövid cooldown
     });
