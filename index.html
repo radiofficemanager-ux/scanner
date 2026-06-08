@@ -441,7 +441,9 @@ function fillSetup(){
   var fs = document.getElementById('m-faz');
   if (!fs) return;
   var gyN       = norm_s(S.gy || '');
-  var isFazValt = gyN.indexOf('fazi') >= 0 && (gyN.indexOf('valtas') >= 0 || gyN.indexOf('valt') >= 0);
+  // Fázisváltás típus: "fázis_váltás" VAGY "csomagol" nevű gyártósor
+  var isFazValt = (gyN.indexOf('fazi') >= 0 && (gyN.indexOf('valtas') >= 0 || gyN.indexOf('valt') >= 0))
+               || gyN.indexOf('csomag') >= 0;
 
   if (!isFazValt) {
     // ── GYÁRTÓSOR: csak Sorvége látható, automatikusan kiválasztva ──
