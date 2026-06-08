@@ -617,33 +617,25 @@ function initTorch(stream) {
 
 
 function toggleTorch() {
-  if (!S.stream) { showToast('❌ S.stream null', 2000); return; }
+  if (!S.stream) return;
   var tracks = S.stream.getVideoTracks();
-  if (!tracks.length) { showToast('❌ Nincs video track', 2000); return; }
+  if (!tracks.length) return;
   var track = tracks[0];
-
-  // Debug: megmutatja a track állapotát
-  var settings = track.getSettings ? track.getSettings() : {};
-  var caps     = track.getCapabilities ? track.getCapabilities() : {};
-  showToast('Track: ' + track.readyState +
-    ' | facing: ' + (settings.facingMode||'?') +
-    ' | torch cap: ' + (caps.torch ? 'IGEN' : 'NEM'), 4000);
 
   _torchOn = !_torchOn;
 
   track.applyConstraints({ advanced: [{ torch: _torchOn }] })
     .then(function() {
       var btn = document.getElementById('btn-torch');
-      if (btn) {
-        btn.textContent      = _torchOn ? '💡' : '🔦';
-        btn.style.background = _torchOn ? 'rgba(255,220,0,.4)' : '';
-        btn.style.color      = _torchOn ? '#fde68a' : '';
-      }
-      showToast('✅ applyConstraints OK, torch=' + _torchOn, 2500);
+      if (!btn) return;
+      btn.textContent      = _torchOn ? '💡' : '🔦';
+      btn.style.background = _torchOn ? 'rgba(255,220,0,.4)' : '';
+      btn.style.color      = _torchOn ? '#fde68a' : '';
+      btn.title            = _torchOn ? 'Vaku KI' : 'Vaku BE';
     })
     .catch(function(e) {
       _torchOn = !_torchOn;
-      showToast('❌ Hiba: ' + (e.name||'?') + ' – ' + (e.message||'?'), 4000);
+      showToast('Vaku nem elérhető', 2000);
     });
 }
 
