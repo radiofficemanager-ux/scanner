@@ -399,10 +399,21 @@ function doLogin(){
   btn.innerHTML='<span class="spin"></span>Belépés...'; btn.disabled=true;
   apiPost('kioszkLogin',{gyartosor:gy,pin:pin}).then(function(r){
     S.token=r.token; S.gy=r.gyartosor; saveSes();
-    // PIN mentése auto token-megújításhoz
     try { localStorage.setItem('gyn_pin', JSON.stringify({gy:gy,pin:pin})); } catch(le){}
-    fillSetup(); showPg('pg-setup');
-    showToast('Üdvözöljük! Műszak: '+r.muszak);
+    // Mosás állomás: skip setup → egyből scan
+    var _gyNL = r.gyartosor.toLowerCase()
+      .replace(/á/g,'a').replace(/é/g,'e').replace(/í/g,'i')
+      .replace(/[óöő]/g,'o').replace(/[úüű]/g,'u');
+    if (_gyNL.indexOf('mos') >= 0) {
+      S.faz = 'Kocsimosás';
+      showToast('🚿 Kocsimosás kész!');
+      startCam(); showPg('pg-scan');
+      document.getElementById('m-bdg').textContent  = '🚿 MOSÁS';
+      document.getElementById('m-bdg').style.background = '#0ea5e9';
+    } else {
+      fillSetup(); showPg('pg-setup');
+      showToast('Üdvözöljük! Műszak: '+r.muszak);
+    }
   }).catch(function(e){
     var msg = (e && e.message) ? e.message : 'Ismeretlen hiba';
     // GAS hibák fordítása
@@ -447,7 +458,21 @@ function fillSetup(){
   // Mosás típus: "mos" nevű gyártósor
   var isMosas = gyN.indexOf('mos') >= 0 && gyN.indexOf('mosov') < 0;
 
-  if (!isFazValt) {
+  if (isMosas) {
+    // ── MOSÁS ÁLLOMÁS: nincs termék, nincs fázis, csak scan ──
+    fs.style.display = 'none';
+    var fazLbl0 = fs.previousElementSibling;
+    if (fazLbl0 && fazLbl0.tagName === 'LABEL') fazLbl0.style.display = 'none';
+    var tRow0 = document.getElementById('termek-row');
+    if (tRow0) tRow0.style.display = 'none';
+    var sRow0 = document.getElementById('sokkolo-row');
+    if (sRow0) sRow0.style.display = 'none';
+    // Badge és felirat
+    var bdg = document.getElementById('m-bdg');
+    if (bdg) { bdg.textContent = '🚿 MOSÁS'; bdg.style.background = '#0ea5e9'; }
+    S.faz = 'Mosás'; // dummy fázis
+    return; // nem kell több setup
+  } else if (!isFazValt) {
     // ── GYÁRTÓSOR: csak Sorvége látható, automatikusan kiválasztva ──
     // Keressük meg a Sorvége fázist
     var sorvegeFaz = '';
@@ -866,6 +891,10 @@ document.addEventListener('DOMContentLoaded',function(){
     var ses=JSON.parse(localStorage.getItem('ks2')||'null');
     if(ses&&ses.token&&(Date.now()-ses.ts)<43200000){
       S.token=ses.token;S.gy=ses.gy;S.faz=ses.faz;S.cs=ses.cs;S.sk=ses.sk;
+      // Mosás session: fázis override
+      var _sesGy = (S.gy||'').toLowerCase().replace(/[áéíóöőúüű]/g,function(c){
+        return {á:'a',é:'e',í:'i',ó:'o',ö:'o',ő:'o',ú:'u',ü:'u',ű:'u'}[c]||c;});
+      if (_sesGy.indexOf('mos') >= 0) S.faz = 'Kocsimosás';
       S.cnt=ses.cnt||0; // leolvasásszám visszaállítása
       api('getMasterData').then(function(d){S.md=d;S.termekek=(d.termekek||[]);});
       goScan(); return;
