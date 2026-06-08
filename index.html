@@ -187,7 +187,8 @@ canvas#qc{display:none}
 <div class="pg" id="pg-scan">
   <div class="sc-hdr">
     <div class="sc-bdg" id="m-bdg"></div>
-    <button class="hdr-btn" id="btn-stp">⚙️</button>
+    <button class="hdr-btn" id="btn-torch" style="display:none" title="Vaku">🔦</button>
+  <button class="hdr-btn" id="btn-stp">⚙️</button>
     <button class="hdr-btn exit" id="btn-exit">🚪 Ki</button>
   </div>
   <video id="qv" autoplay playsinline muted></video>
@@ -590,14 +591,55 @@ function startCam(){
     v.srcObject=stream; v.play().catch(function(){});
     v.addEventListener('loadedmetadata',startDecode,{once:true});
     setStatus('idle','Tartsd a QR kódot a keretbe');
+    // Vaku (torch) támogatás ellenőrzése
+    initTorch(stream);
   }).catch(function(e){
     setStatus('err','Kamera: '+( e.name||e.message));
     showToast('Kamera hiba: '+(e.name||e.message),4000);
   });
 }
 
+// ── VAKU / TORCH ─────────────────────────────────────────────
+var _torchOn = false;
+var _torchTrack = null;
+
+function initTorch(stream) {
+  var tracks = stream.getVideoTracks();
+  if (!tracks.length) return;
+  var track = tracks[0];
+  var caps = track.getCapabilities ? track.getCapabilities() : {};
+  // Csak ha a kamera támogatja a torch-ot
+  if (caps.torch) {
+    _torchTrack = track;
+    var btn = document.getElementById('btn-torch');
+    if (btn) btn.style.display = '';
+  }
+}
+
+function toggleTorch() {
+  if (!_torchTrack) return;
+  _torchOn = !_torchOn;
+  _torchTrack.applyConstraints({ advanced: [{ torch: _torchOn }] })
+    .then(function() {
+      var btn = document.getElementById('btn-torch');
+      if (btn) {
+        btn.textContent = _torchOn ? '💡' : '🔦';
+        btn.style.background = _torchOn ? 'rgba(255,200,0,.35)' : '';
+        btn.style.color = _torchOn ? '#fde68a' : '';
+      }
+    })
+    .catch(function(e) { showToast('Vaku nem elérhető: ' + e.message, 2000); _torchOn = !_torchOn; });
+}
+
 function stopCam(){
   if(S.raf){cancelAnimationFrame(S.raf);S.raf=null;}
+  // Vaku kikapcsolás leállítás előtt
+  if (_torchOn && _torchTrack) {
+    try { _torchTrack.applyConstraints({ advanced: [{ torch: false }] }); } catch(e) {}
+    _torchOn = false; _torchTrack = null;
+    var btn = document.getElementById('btn-torch');
+    if (btn) { btn.textContent = '🔦'; btn.style.background = ''; btn.style.display = 'none'; }
+  }
   if(S.stream){S.stream.getTracks().forEach(function(t){t.stop();});S.stream=null;}
   var v=document.getElementById('qv'); if(v)v.srcObject=null;
 }
