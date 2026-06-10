@@ -667,6 +667,15 @@ function toggleTorch() {
       btn.style.background = _torchOn ? 'rgba(255,220,0,.4)' : '';
       btn.style.color      = _torchOn ? '#fde68a' : '';
       btn.title            = _torchOn ? 'Vaku KI' : 'Vaku BE';
+      // Auto-kikapcsolás 10 mp után
+      if (window._torchTimer) clearTimeout(window._torchTimer);
+      if (_torchOn) {
+        window._torchTimer = setTimeout(function() {
+          _torchOn = false;
+          track.applyConstraints({ advanced: [{ torch: false }] }).catch(function(){});
+          btn.textContent = '🔦'; btn.style.background = ''; btn.style.color = ''; btn.title = 'Vaku BE';
+        }, 10000);
+      }
     })
     .catch(function(e) {
       _torchOn = !_torchOn;
@@ -765,7 +774,7 @@ function startDecode(){
 }
 
 // Helyi duplikátum védelem
-var _recentScans = [];
+var _recentScans = {};  // key→timestamp (5 perces duplikátum védelem)
 
 function onScan(raw){
   // MOSÁS MÓD: egyszerű scan
@@ -805,15 +814,15 @@ function onScan(raw){
   var text=raw.trim().toUpperCase();
   if(!text||text.length<2)return;
 
-  // HELYI duplikátum check (azonnali, nincs szerverhívás)
-  var today=new Date().toDateString();
-  var key=text+'_'+S.gy+'_'+S.faz+'_'+today;
-  if(_recentScans.indexOf(key)>=0){
-    setStatus('dup','⚠️ Mar leolvasva ma: '+text);
+  // HELYI duplikátum check: csak 5 percen belül blokkol (nem egész napra)
+  var now5=Date.now();
+  var key=text+'_'+S.gy+'_'+S.faz;
+  var lastTs=_recentScans[key]||0;
+  if(now5-lastTs < 300000){ // 5 perc
+    setStatus('dup','⚠️ Már leolvasva (5 percen belül): '+text);
     beepDUP(); doFlash('dup'); return;
   }
-  _recentScans.push(key);
-  if(_recentScans.length>100)_recentScans.shift();
+  _recentScans[key]=now5;
 
   // AZONNALI visszajelzés - nem várunk a szerverre
   S.busy=true;
