@@ -934,6 +934,31 @@ document.addEventListener('DOMContentLoaded',function(){
 
   loadGy();
 });
+  // ── Service Worker: automatikus frissítés ──────────────
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').then(function(reg) {
+      console.log('[PWA] SW regisztrálva:', reg.scope);
+
+      // Figyeljük ha új verzió érkezett
+      reg.addEventListener('updatefound', function() {
+        var newWorker = reg.installing;
+        newWorker.addEventListener('statechange', function() {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // Új verzió elérhető → automatikus újratöltés
+            console.log('[PWA] Új verzió – újratöltés...');
+            showToast('🔄 Frissítés letöltve – újratöltés...', 2000);
+            setTimeout(function() { window.location.reload(); }, 2200);
+          }
+        });
+      });
+    }).catch(function(e) { console.log('[PWA] SW hiba:', e); });
+
+    // Ha a SW frissült és átvette az irányítást → reload
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+      window.location.reload();
+    });
+  }
+
 </script>
 </body>
 </html>
