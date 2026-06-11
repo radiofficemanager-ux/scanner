@@ -791,6 +791,8 @@ function onScan(raw){
     setStatus('ok','🚿 '+_kocsi+' – Lemosva ✅');
     showScanOK(_kocsi);  // nagy zöld overlay
     beepOK(); doFlash('ok');
+    // Zseblámpa automatikus kikapcsolás
+    if(_torchOn){ toggleTorch(); }
     document.getElementById('m-last').textContent='🚿 '+_kocsi;
     // Szerver hívás háttérben
     apiPost('submitMosas',{token:S.token,kocsi:_kocsi,eszkoz:S.gy}).then(function(r){
@@ -814,12 +816,13 @@ function onScan(raw){
   var text=raw.trim().toUpperCase();
   if(!text||text.length<2)return;
 
-  // HELYI duplikátum check: csak 5 percen belül blokkol (nem egész napra)
+  // HELYI duplikátum check: 30 mp (véletlen dupla tap ellen)
+  // Visszaforgatott kocsik 30mp után újra scannelhetők
   var now5=Date.now();
   var key=text+'_'+S.gy+'_'+S.faz;
   var lastTs=_recentScans[key]||0;
-  if(now5-lastTs < 300000){ // 5 perc
-    setStatus('dup','⚠️ Már leolvasva (5 percen belül): '+text);
+  if(now5-lastTs < 30000){ // 30 másodperc
+    setStatus('dup','⚠️ Dupla scan (30 mp): '+text);
     beepDUP(); doFlash('dup'); return;
   }
   _recentScans[key]=now5;
@@ -831,6 +834,8 @@ function onScan(raw){
   document.getElementById('m-last').textContent='Utolso: '+text;
   setStatus('ok','✅ '+text+' – Rogzítve');
   showScanOK(text); doFlash('ok'); beepOK();
+  // Zseblámpa automatikus kikapcsolás scan után
+  if(_torchOn){ toggleTorch(); }
   saveSes();
 
   // Háttérben szinkronizálás a szerverrel
