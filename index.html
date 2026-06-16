@@ -606,6 +606,12 @@ function doStart(){
   if (!faz)               { showToast('Válassz fázist!'); return; }
   if (isSorvege  && !cs)  { showToast('Sorvégén kötelező a termék kiválasztása!'); return; }
   if (isSokkolas && !sk)  { showToast('Sokkoláshoz válassz sokkoló gépet!'); return; }
+  // Ha cikkszám változott → számláló nullázása (új termék = új számolás)
+  if (isSorvege && cs && cs !== S.cs) {
+    S.cnt = 0;
+    try { localStorage.removeItem('scan_cnt_' + S.gy); } catch(e) {}
+    showToast('🔄 Új termék – számláló nullázva', 2000);
+  }
   S.faz=faz; S.cs=isSorvege?cs:''; S.sk=isSokkolas?sk:'';
   saveSes(); goScan();
 }
