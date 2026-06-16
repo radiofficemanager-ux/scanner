@@ -597,6 +597,7 @@ function updSkRow(){
   }
 }
 function doStart(){
+  var prevCs = S.cs; // előző cikkszám mentése MIELŐTT bármi változna
   var faz = document.getElementById('m-faz') ? document.getElementById('m-faz').value : '';
   var cs  = document.getElementById('m-cs')  ? document.getElementById('m-cs').value  : '';
   var sk  = document.getElementById('m-sk')  ? document.getElementById('m-sk').value  : '';
@@ -606,13 +607,14 @@ function doStart(){
   if (!faz)               { showToast('Válassz fázist!'); return; }
   if (isSorvege  && !cs)  { showToast('Sorvégén kötelező a termék kiválasztása!'); return; }
   if (isSokkolas && !sk)  { showToast('Sokkoláshoz válassz sokkoló gépet!'); return; }
-  // Ha cikkszám változott → számláló nullázása (új termék = új számolás)
-  if (isSorvege && cs && cs !== S.cs) {
+  // Cikkszám változott → számláló nullázása
+  // (prevCs az előző session cs-je, cs az újonnan kiválasztott)
+  var ujCs = isSorvege ? cs : '';
+  if (ujCs !== prevCs) {
     S.cnt = 0;
-    try { localStorage.removeItem('scan_cnt_' + S.gy); } catch(e) {}
     showToast('🔄 Új termék – számláló nullázva', 2000);
   }
-  S.faz=faz; S.cs=isSorvege?cs:''; S.sk=isSokkolas?sk:'';
+  S.faz=faz; S.cs=ujCs; S.sk=isSokkolas?sk:'';
   saveSes(); goScan();
 }
 
@@ -624,10 +626,8 @@ function goScan(){
     '<span class="bdg">🔄 '+S.faz+'</span>'+
     (S.sk?'<span class="bdg">🧊 '+S.sk+'</span>':'')+
     (S.cs?'<span class="bdg">📦 '+S.cs+'</span>':'');
-  try {
-    var savedCnt = localStorage.getItem('scan_cnt_' + S.gy);
-    if (savedCnt) S.cnt = parseInt(savedCnt) || 0;
-  } catch(e) {}
+  // FONTOS: NE olvassuk vissza a cnt-t localStorage-ból itt –
+  // a doStart() már beállította a helyes értéket (0 vagy maradék)
   document.getElementById('m-cnt').textContent=S.cnt;
   document.getElementById('m-last').textContent='';
   var tEl=document.getElementById('m-termek'); if(tEl) tEl.textContent='';
