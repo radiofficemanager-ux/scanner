@@ -42,6 +42,8 @@ select[size]{height:auto;padding:.25rem 0!important;font-size:clamp(.85rem,3vw,1
 .btn-blue:active{background:#0ea5e9}
 .btn-gray{background:#1e293b;color:#94a3b8;border:1px solid #334155}
 .btn-gray:active{background:#334155}
+.btn-amber{background:#f59e0b;color:#0f172a}
+.btn-amber:active{background:#d97706}
 #pg-login{background:linear-gradient(160deg,#0f172a,#0c1a3a)}
 .logo{text-align:center;margin-bottom:clamp(1rem,4vw,1.5rem)}
 .logo .ico{font-size:clamp(2.5rem,10vw,3.5rem)}
@@ -80,8 +82,10 @@ canvas#qc{display:none}
   width:min(62vw,260px);height:min(62vw,260px);
   border:2.5px solid #38bdf8;border-radius:14px;
   box-shadow:0 0 0 9999px rgba(0,0,0,.48);z-index:10;pointer-events:none}
+/* FIX CSS: will-change + translateZ → GPU layer, nem konkurál a RAF loop-pal */
 .scan-line{position:absolute;left:4%;right:4%;height:2px;
   background:linear-gradient(90deg,transparent,#38bdf8,transparent);
+  will-change:top;transform:translateZ(0);
   animation:sl 1.8s ease-in-out infinite}
 @keyframes sl{0%,100%{top:6%;opacity:.5}50%{top:88%;opacity:1}}
 .sc-foot{position:absolute;bottom:0;left:0;right:0;z-index:100;
@@ -100,18 +104,18 @@ canvas#qc{display:none}
 .s-ok  {background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:#86efac}
 .s-dup {background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fcd34d}
 .s-err {background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
+/* FIX: s-warn osztály hiányzott – setStatus('warn',...) hívás létező helyen */
+.s-warn{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fcd34d}
 #flash{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:900;transition:opacity .2s}
 #flash.ok{background:rgba(34,197,94,.55)}
 #flash.err{background:rgba(239,68,68,.5)}
 #flash.dup{background:rgba(245,158,11,.45)}
 .fon{opacity:1!important}
-
-/* Siker overlay - nagy szöveg a visszajelzéshez */
+/* Siker overlay */
 #scan-ok-overlay{
   position:fixed;inset:0;z-index:800;pointer-events:none;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  opacity:0;transition:opacity .15s;
-}
+  opacity:0;transition:opacity .15s}
 #scan-ok-overlay.show{opacity:1}
 .ok-icon{font-size:clamp(5rem,20vw,9rem);line-height:1}
 .ok-text{font-size:clamp(1.5rem,6vw,3rem);font-weight:900;color:#fff;
@@ -127,6 +131,26 @@ canvas#qc{display:none}
   border:2px solid rgba(255,255,255,.25);border-top-color:currentColor;
   border-radius:50%;animation:sp .7s linear infinite;vertical-align:-.1em;margin-right:.3rem}
 @keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── MANUÁLIS BEVITEL OVERLAY ── */
+#manual-overlay{
+  position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.85);
+  display:none;align-items:center;justify-content:center;padding:1rem}
+#manual-overlay.on{display:flex}
+#manual-card{
+  background:#0f172a;border:1px solid #1e293b;border-radius:20px;
+  padding:1.5rem;width:100%;max-width:360px}
+#manual-card h3{font-size:1.1rem;font-weight:800;color:#f59e0b;
+  text-align:center;margin-bottom:1rem}
+#manual-inp{
+  width:100%;padding:1rem;border:2px solid #334155;border-radius:10px;
+  background:#020617;color:#f1f5f9;font-size:1.6rem;font-weight:800;
+  font-family:monospace;text-align:center;letter-spacing:.15em;
+  outline:none;text-transform:uppercase;margin-bottom:.75rem}
+#manual-inp:focus{border-color:#f59e0b}
+#manual-hint{font-size:.78rem;color:#475569;text-align:center;margin-bottom:.75rem}
+.manual-btns{display:flex;gap:.5rem}
+.manual-btns button{flex:1}
 </style>
 </head>
 <body>
@@ -135,6 +159,20 @@ canvas#qc{display:none}
 <div id="scan-ok-overlay">
   <div class="ok-icon">✅</div>
   <div class="ok-text" id="ok-text"></div>
+</div>
+
+<!-- MANUÁLIS BEVITEL OVERLAY (sérült / nem olvasható QR kód esetén) -->
+<div id="manual-overlay">
+  <div id="manual-card">
+    <h3>⌨️ Manuális kocsi bevitel</h3>
+    <input id="manual-inp" type="text" inputmode="text"
+      placeholder="pl. K-0042" autocomplete="off" maxlength="20">
+    <div id="manual-hint">Írd be a kocsiszámot a QR kódról / kocsiról</div>
+    <div class="manual-btns">
+      <button class="btn btn-amber" id="btn-manual-ok">✅ Rögzít</button>
+      <button class="btn btn-gray" id="btn-manual-cancel">✕ Mégse</button>
+    </div>
+  </div>
 </div>
 
 <!-- LOGIN -->
@@ -188,7 +226,7 @@ canvas#qc{display:none}
   <div class="sc-hdr">
     <div class="sc-bdg" id="m-bdg"></div>
     <button class="hdr-btn" id="btn-torch" style="display:none" title="Vaku BE" onclick="toggleTorch()">🔦</button>
-  <button class="hdr-btn" id="btn-stp">⚙️</button>
+    <button class="hdr-btn" id="btn-stp">⚙️</button>
     <button class="hdr-btn exit" id="btn-exit">🚪 Ki</button>
   </div>
   <video id="qv" autoplay playsinline muted></video>
@@ -207,17 +245,45 @@ canvas#qc{display:none}
       </div>
     </div>
     <div class="status s-idle" id="m-st">Tartsd a QR kódot a keretbe</div>
+    <!-- Manuális bevitel gomb: sérült / nem olvasható kód esetén -->
+    <button id="btn-manual" onclick="openManual()"
+      style="margin-top:.5rem;width:100%;padding:.55rem;border:1.5px dashed #334155;
+      border-radius:8px;background:transparent;color:#475569;font-size:.82rem;
+      font-weight:700;cursor:pointer;letter-spacing:.02em">
+      ⌨️ Nem olvasható? → Manuális bevitel
+    </button>
   </div>
 </div>
 
 <script>
 // ═══════════════════════════════════════════════════
-// !! ÍRD BE A GAS URL-T !!
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbwRIhFZnwY2RkA_WdBu-mnlyTSV6muaaJH2a_lgTlhgzU1UQuZ1nc6N5OYlaUAd55az/exec';
 // ═══════════════════════════════════════════════════
-// ── HANGJELZÉS + REZGÉS ────────────────────────────────────
+
+window.onerror = function(msg,s,l){ showToast('JS hiba: '+msg+' L'+l,5000); };
+
+// ── ÁLLAPOT ─────────────────────────────────────────
+var S = {
+  token:null,gy:null,faz:null,cs:null,sk:null,
+  cnt:0,busy:false,stream:null,raf:null,md:null,termekek:[]
+};
+
+// ── HANGJELZÉS ──────────────────────────────────────
+// FIX: Singleton AudioContext – Chrome max ~6 párhuzamost enged;
+// korábbi kód minden beepnél újat hozott létre → szivárgás hosszú műszak után
+var _audioCtx = null;
+function _getAudioCtx() {
+  try {
+    if (!_audioCtx || _audioCtx.state === 'closed') {
+      _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (_audioCtx.state === 'suspended') { _audioCtx.resume(); }
+    return _audioCtx;
+  } catch(e) { return null; }
+}
 function beepOK() {
   try {
-    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    var ctx = _getAudioCtx(); if (!ctx) return;
     [0,130].forEach(function(d){
       var o=ctx.createOscillator(),g=ctx.createGain();
       o.connect(g);g.connect(ctx.destination);
@@ -233,7 +299,7 @@ function beepOK() {
 }
 function beepERR() {
   try {
-    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    var ctx = _getAudioCtx(); if (!ctx) return;
     var o=ctx.createOscillator(),g=ctx.createGain();
     o.connect(g);g.connect(ctx.destination);
     o.frequency.value=200;o.type='sawtooth';
@@ -245,7 +311,7 @@ function beepERR() {
 }
 function beepDUP() {
   try {
-    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    var ctx = _getAudioCtx(); if (!ctx) return;
     [0,160,320].forEach(function(d){
       var o=ctx.createOscillator(),g=ctx.createGain();
       o.connect(g);g.connect(ctx.destination);
@@ -259,44 +325,27 @@ function beepDUP() {
   if(navigator.vibrate)navigator.vibrate([50,50,50]);
 }
 
-var GAS_URL = 'https://script.google.com/macros/s/AKfycbwRIhFZnwY2RkA_WdBu-mnlyTSV6muaaJH2a_lgTlhgzU1UQuZ1nc6N5OYlaUAd55az/exec';
-// ═══════════════════════════════════════════════════
-
-window.onerror = function(msg,s,l){ showToast('JS hiba: '+msg+' L'+l,5000); };
-
-var S = {
-  token:null,gy:null,faz:null,cs:null,sk:null,
-  cnt:0,busy:false,stream:null,raf:null,md:null,termekek:[]
-};
-
-// ── JSONP API - CORS-mentes, minden domainről működik ──
+// ── JSONP API ────────────────────────────────────────
 function api(action, params) {
   return new Promise(function(resolve, reject) {
-    // Egyedi callback név
     var cbName = '_gcb' + Date.now() + Math.floor(Math.random()*1000);
-
-    // URL összerakása
     var url = GAS_URL + '?callback=' + cbName + '&action=' + encodeURIComponent(action);
     var p   = Object.assign({}, params || {});
     if (S.token) p.token = S.token;
     for (var k in p) {
       url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(p[k] !== undefined ? p[k] : '');
     }
-
-    // Timeout (10 mp)
+    // FIX: timeout 12mp (volt 20mp) – gyorsabb S.busy feloldás hálózati akadásnál
     var timer = setTimeout(function() {
       cleanup();
       reject(new Error('Időtúllépés - próbáld újra'));
-    }, 20000);
-
+    }, 12000);
     function cleanup() {
       clearTimeout(timer);
       delete window[cbName];
       var s = document.getElementById(cbName);
       if (s && s.parentNode) s.parentNode.removeChild(s);
     }
-
-    // Callback regisztrálása
     window[cbName] = function(data) {
       cleanup();
       if (data && data.ok === false) {
@@ -305,8 +354,6 @@ function api(action, params) {
         resolve(data && data.result !== undefined ? data.result : data);
       }
     };
-
-    // Script tag injektálás (JSONP)
     var script = document.createElement('script');
     script.id  = cbName;
     script.src = url;
@@ -317,12 +364,9 @@ function api(action, params) {
     document.head.appendChild(script);
   });
 }
+function apiPost(action, data) { return api(action, data); }
 
-// apiPost = api (JSONP mindkettő)
-function apiPost(action, data) {
-  return api(action, data);
-}
-
+// ── UI SEGÉDFÜGGVÉNYEK ───────────────────────────────
 var _tt;
 function showToast(msg,ms){
   var el=document.getElementById('toast');
@@ -348,16 +392,14 @@ function showScanOK(text) {
   clearTimeout(_okTimer);
   _okTimer = setTimeout(function() { ov.classList.remove('show'); }, 800);
 }
-
 function setStatus(type,msg){
   var el=document.getElementById('m-st');
   el.className='status s-'+type; el.textContent=msg;
 }
-function showErr(msg){ var el=document.getElementById('m-err'); el.textContent=msg; }
+function showErr(msg){ var el=document.getElementById('m-err'); if(el) el.textContent=msg; }
 function saveSes(){
   try{localStorage.setItem('ks2',JSON.stringify({
-    token:S.token,gy:S.gy,faz:S.faz,cs:S.cs,sk:S.sk,ts:Date.now(),
-    cnt:S.cnt  // leolvasásszám megőrzése
+    token:S.token,gy:S.gy,faz:S.faz,cs:S.cs,sk:S.sk,ts:Date.now(),cnt:S.cnt
   }));}catch(e){}
 }
 function clearSes(){
@@ -365,10 +407,10 @@ function clearSes(){
   S.token=S.gy=S.faz=S.cs=S.sk=null; S.cnt=0;
 }
 
-// LOGIN
+// ── LOGIN ────────────────────────────────────────────
 function loadGy(){
   showErr('');
-  if(S.md){ fillGySel(S.md); return; } // cache
+  if(S.md){ fillGySel(S.md); return; }
   var sel=document.getElementById('m-gy');
   sel.innerHTML='<option>Betöltés...</option>';
   api('getMasterData').then(function(d){
@@ -384,11 +426,10 @@ function fillGySel(d){
   sel.innerHTML='<option value="">Válassz gyártósort...</option>';
   (d.gyartosok||[]).forEach(function(g){
     var o=document.createElement('option');
-    o.value=o.textContent=g['Nev']||g['Nev']||g['Név']||'';
+    o.value=o.textContent=g['Nev']||g['Név']||'';
     sel.appendChild(o);
   });
 }
-
 function doLogin(){
   var gy=document.getElementById('m-gy').value;
   var pin=document.getElementById('m-pin').value;
@@ -400,7 +441,6 @@ function doLogin(){
   apiPost('kioszkLogin',{gyartosor:gy,pin:pin}).then(function(r){
     S.token=r.token; S.gy=r.gyartosor; saveSes();
     try { localStorage.setItem('gyn_pin', JSON.stringify({gy:gy,pin:pin})); } catch(le){}
-    // Mosás állomás: skip setup → egyből scan
     var _gyNL = r.gyartosor.toLowerCase()
       .replace(/á/g,'a').replace(/é/g,'e').replace(/í/g,'i')
       .replace(/[óöő]/g,'o').replace(/[úüű]/g,'u');
@@ -410,7 +450,6 @@ function doLogin(){
       startCam(); showPg('pg-scan');
       document.getElementById('m-bdg').textContent  = '🚿 MOSÁS';
       document.getElementById('m-bdg').style.background = '#0ea5e9';
-      // Beállítások gomb elrejtése – mosásnál nincs fázisváltás
       var stpBtn = document.getElementById('btn-stp');
       if (stpBtn) stpBtn.style.display = 'none';
     } else {
@@ -419,7 +458,6 @@ function doLogin(){
     }
   }).catch(function(e){
     var msg = (e && e.message) ? e.message : 'Ismeretlen hiba';
-    // GAS hibák fordítása
     if (msg.indexOf('Hibás PIN') >= 0 || msg.toLowerCase().indexOf('pin') >= 0) {
       showErr('❌ Hibás PIN kód! ' + msg.replace('Hibás PIN.','').trim());
     } else if (msg.indexOf('Zárolva') >= 0 || msg.indexOf('zárolva') >= 0) {
@@ -433,7 +471,7 @@ function doLogin(){
   }).finally(function(){btn.innerHTML='⚡ Belépés'; btn.disabled=false;});
 }
 
-// SETUP
+// ── SETUP ────────────────────────────────────────────
 function norm_s(s) {
   if (!s) return '';
   return String(s).toLowerCase()
@@ -441,7 +479,6 @@ function norm_s(s) {
     .replace(/[óöő]/g,'o').replace(/[úüű]/g,'u')
     .replace(/[^a-z0-9]/g,'');
 }
-
 function fillSetup(){
   var d=S.md;
   if(!d){
@@ -449,20 +486,15 @@ function fillSetup(){
       .catch(function(e){showToast('Betöltési hiba: '+e.message,4000);});
     return;
   }
-  // Gyártósor label
   var gyLbl=document.getElementById('setup-gy-label');
   if(gyLbl) gyLbl.textContent=S.gy||'—';
   var fs = document.getElementById('m-faz');
   if (!fs) return;
-  var gyN       = norm_s(S.gy || '');
-  // Fázisváltás típus: "fázis_váltás" VAGY "csomagol" nevű gyártósor
+  var gyN = norm_s(S.gy || '');
   var isFazValt = (gyN.indexOf('fazi') >= 0 && (gyN.indexOf('valtas') >= 0 || gyN.indexOf('valt') >= 0))
                || gyN.indexOf('csomag') >= 0;
-  // Mosás típus: "mos" nevű gyártósor
   var isMosas = gyN.indexOf('mos') >= 0 && gyN.indexOf('mosov') < 0;
-
   if (isMosas) {
-    // ── MOSÁS ÁLLOMÁS: nincs termék, nincs fázis, csak scan ──
     fs.style.display = 'none';
     var fazLbl0 = fs.previousElementSibling;
     if (fazLbl0 && fazLbl0.tagName === 'LABEL') fazLbl0.style.display = 'none';
@@ -470,34 +502,27 @@ function fillSetup(){
     if (tRow0) tRow0.style.display = 'none';
     var sRow0 = document.getElementById('sokkolo-row');
     if (sRow0) sRow0.style.display = 'none';
-    // Badge és felirat
     var bdg = document.getElementById('m-bdg');
     if (bdg) { bdg.textContent = '🚿 MOSÁS'; bdg.style.background = '#0ea5e9'; }
-    S.faz = 'Mosás'; // dummy fázis
-    return; // nem kell több setup
+    S.faz = 'Mosás';
+    return;
   } else if (!isFazValt) {
-    // ── GYÁRTÓSOR: csak Sorvége látható, automatikusan kiválasztva ──
-    // Keressük meg a Sorvége fázist
     var sorvegeFaz = '';
     (d.fazisok||[]).forEach(function(f){
       var nev = f['Nev']||f['Név']||'';
       if (norm_s(nev).indexOf('sorveg') >= 0 && !sorvegeFaz) sorvegeFaz = nev;
     });
-    // Ha van már kiválasztott fázis (session) és az nem Sorvége → tartsuk meg
-    // Ha nincs vagy Sorvége az egyetlen opció → auto Sorvége
     var targetFaz = (S.faz && norm_s(S.faz).indexOf('sorveg') >= 0) ? S.faz : sorvegeFaz;
     fs.innerHTML = '';
     var o = document.createElement('option');
     o.value = o.textContent = targetFaz;
     o.selected = true;
     fs.appendChild(o);
-    S.faz = targetFaz; // állapot frissítése
-    // Fázisváltó gombok elrejtése - normál soron csak Sorvége
-    fs.style.display = 'none'; // nem kell megmutatni, egyértelmű
+    S.faz = targetFaz;
+    fs.style.display = 'none';
     var fazLbl = fs.previousElementSibling;
     if (fazLbl && fazLbl.tagName === 'LABEL') fazLbl.style.display = 'none';
   } else {
-    // ── FÁZISVÁLTÁS ÁLLOMÁS: minden fázis kivéve Sorvége ──
     fs.style.display = '';
     var fazLbl2 = fs.previousElementSibling;
     if (fazLbl2 && fazLbl2.tagName === 'LABEL') fazLbl2.style.display = '';
@@ -505,8 +530,8 @@ function fillSetup(){
     (d.fazisok||[]).sort(function(a,b){return(+a['Sorrend']||0)-(+b['Sorrend']||0);})
       .forEach(function(f){
         var nev = f['Nev']||f['Név']||'';
-        if (norm_s(nev).indexOf('sorveg') >= 0) return; // Sorvége nem elérhető
-        if (norm_s(nev).indexOf('kocsimos') >= 0) return; // Kocsimosás csak mosó állomáson
+        if (norm_s(nev).indexOf('sorveg') >= 0) return;
+        if (norm_s(nev).indexOf('kocsimos') >= 0) return;
         var o = document.createElement('option');
         o.value = o.textContent = nev;
         if (S.faz && o.value === S.faz) o.selected = true;
@@ -519,8 +544,7 @@ function fillSetup(){
     ss.innerHTML = '<option value="">— Válassz sokkolót —</option>';
     skGep.forEach(function(n, i) {
       var o = document.createElement('option');
-      o.value = n;
-      o.textContent = (i + 1) + '. ' + n;
+      o.value = n; o.textContent = (i + 1) + '. ' + n;
       if (S.sk && S.sk === n) o.selected = true;
       ss.appendChild(o);
     });
@@ -529,13 +553,11 @@ function fillSetup(){
     }
   }
   S.termekek=(d.termekek||[]).filter(function(t){return t.Aktiv!==false;});
-  // Utolsó termék visszatöltése ha nincs session
   if (!S.cs && S.gy) {
     try { S.cs = localStorage.getItem('last_cs_'+S.gy) || ''; } catch(e){}
   }
   filterT(''); updSkRow();
 }
-
 function filterT(q){
   var sel=document.getElementById('m-cs');
   q=(q||'').toLowerCase();
@@ -548,19 +570,16 @@ function filterT(q){
     var o=document.createElement('option');
     o.value=t.Cikkszam||'';
     o.style.padding='4px 0';
-    var cs  = t.Cikkszam || '';
-    var nev = t.Nev      || '';
+    var cs=t.Cikkszam||'', nev=t.Nev||'';
     o.textContent = cs + (nev ? '  –  ' + nev : '');
     if(S.cs&&o.value===S.cs)o.selected=true;
     sel.appendChild(o);
   });
 }
-
 function updSkRow(){
   var fazEl = document.getElementById('m-faz');
   if (!fazEl) return;
   var faz = fazEl.value || '';
-  // Ha a fázis select rejtett, az automatikusan Sorvége (gyártósor mód)
   if (fazEl.style.display === 'none') {
     faz = fazEl.options[0] ? fazEl.options[0].value : faz;
   }
@@ -577,7 +596,6 @@ function updSkRow(){
     S.cs = '';
   }
 }
-
 function doStart(){
   var faz = document.getElementById('m-faz') ? document.getElementById('m-faz').value : '';
   var cs  = document.getElementById('m-cs')  ? document.getElementById('m-cs').value  : '';
@@ -585,14 +603,14 @@ function doStart(){
   var fn  = norm_s(faz);
   var isSorvege  = fn.indexOf('sorveg') >= 0;
   var isSokkolas = fn.indexOf('sokkol') >= 0;
-  if (!faz)                    { showToast('Válassz fázist!'); return; }
-  if (isSorvege  && !cs)       { showToast('Sorvégén kötelező a termék kiválasztása!'); return; }
-  if (isSokkolas && !sk)       { showToast('Sokkoláshoz válassz sokkoló gépet!'); return; }
+  if (!faz)               { showToast('Válassz fázist!'); return; }
+  if (isSorvege  && !cs)  { showToast('Sorvégén kötelező a termék kiválasztása!'); return; }
+  if (isSokkolas && !sk)  { showToast('Sokkoláshoz válassz sokkoló gépet!'); return; }
   S.faz=faz; S.cs=isSorvege?cs:''; S.sk=isSokkolas?sk:'';
   saveSes(); goScan();
 }
 
-// SCANNER
+// ── SCANNER OLDAL ────────────────────────────────────
 function goScan(){
   var b=document.getElementById('m-bdg');
   b.innerHTML=
@@ -600,7 +618,6 @@ function goScan(){
     '<span class="bdg">🔄 '+S.faz+'</span>'+
     (S.sk?'<span class="bdg">🧊 '+S.sk+'</span>':'')+
     (S.cs?'<span class="bdg">📦 '+S.cs+'</span>':'');
-  // Scan szám visszatöltése localStorage-ból (frissítés után is megmarad)
   try {
     var savedCnt = localStorage.getItem('scan_cnt_' + S.gy);
     if (savedCnt) S.cnt = parseInt(savedCnt) || 0;
@@ -613,8 +630,16 @@ function goScan(){
   startCam();
 }
 
+// ── KAMERA INDÍTÁS ───────────────────────────────────
+// FIX #1: _decodeStarted flag – garantálja hogy startDecode() pontosan egyszer fut le.
+// A Zebra TC22 Android WebView-n a 'loadedmetadata' event néha NEM tüzel →
+// a decode loop soha nem indult el → "befagyott scanner" első megnyitáskor.
+// Megoldás: loadedmetadata VAGY canplay VAGY 3 másodperces fallback timeout.
+var _decodeStarted = false;
+
 function startCam(){
   stopCam();
+  _decodeStarted = false;
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
     setStatus('err','Kamera API nem elérhető!'); return;
   }
@@ -627,38 +652,50 @@ function startCam(){
   }).then(function(stream){
     S.stream=stream;
     var v=document.getElementById('qv');
-    v.srcObject=stream; v.play().catch(function(){});
-    v.addEventListener('loadedmetadata',startDecode,{once:true});
+    v.srcObject=stream;
+    v.play().catch(function(){});
+
+    // Belső függvény: decode indítása egyszer
+    function tryStartDecode() {
+      if (_decodeStarted) return;
+      _decodeStarted = true;
+      startDecode();
+    }
+
+    // 3 esemény bármelyike trigger-elheti – amelyik elsőként jön
+    v.addEventListener('loadedmetadata', tryStartDecode, {once:true});
+    v.addEventListener('canplay',        tryStartDecode, {once:true});
+    // Fallback: ha sem loadedmetadata, sem canplay nem jön 3mp-en belül
+    // (Zebra Android WebView ismert viselkedése)
+    setTimeout(function(){
+      if (!_decodeStarted && S.stream) {
+        console.log('[Cam] Fallback: loadedmetadata nem jött – force startDecode');
+        tryStartDecode();
+      }
+    }, 3000);
+
     setStatus('idle','Tartsd a QR kódot a keretbe');
     initTorch(stream);
   }).catch(function(e){
-    setStatus('err','Kamera: '+( e.name||e.message));
+    setStatus('err','Kamera: '+(e.name||e.message));
     showToast('Kamera hiba: '+(e.name||e.message),4000);
   });
 }
 
-// ── VAKU / TORCH (Chrome Android) ───────────────────────────
-var _torchOn    = false;
-var _torchTrack = null;
-var _torchIdx   = 0;
-
+// ── VAKU / TORCH ────────────────────────────────────
+var _torchOn=false, _torchTrack=null, _torchIdx=0;
 function initTorch(stream) {
-  // Hátsó kamera esetén megmutatjuk a gombot
   var tracks = stream.getVideoTracks();
   if (!tracks.length) return;
   var btn = document.getElementById('btn-torch');
   if (btn) btn.style.display = '';
 }
-
-
 function toggleTorch() {
   if (!S.stream) return;
   var tracks = S.stream.getVideoTracks();
   if (!tracks.length) return;
   var track = tracks[0];
-
   _torchOn = !_torchOn;
-
   track.applyConstraints({ advanced: [{ torch: _torchOn }] })
     .then(function() {
       var btn = document.getElementById('btn-torch');
@@ -667,7 +704,6 @@ function toggleTorch() {
       btn.style.background = _torchOn ? 'rgba(255,220,0,.4)' : '';
       btn.style.color      = _torchOn ? '#fde68a' : '';
       btn.title            = _torchOn ? 'Vaku KI' : 'Vaku BE';
-      // Auto-kikapcsolás 10 mp után
       if (window._torchTimer) clearTimeout(window._torchTimer);
       if (_torchOn) {
         window._torchTimer = setTimeout(function() {
@@ -677,47 +713,13 @@ function toggleTorch() {
         }, 10000);
       }
     })
-    .catch(function(e) {
+    .catch(function() {
       _torchOn = !_torchOn;
       showToast('Vaku nem elérhető', 2000);
     });
 }
 
-
-function restartCamWithTorch(torchOn) {
-  // Stream leállítása
-  if (S.stream) { S.stream.getTracks().forEach(function(t){t.stop();}); }
-
-  navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: { ideal: 'environment' },
-      width:  { ideal: 640 },
-      height: { ideal: 480 },
-      advanced: [{ torch: torchOn }]
-    }
-  }).then(function(stream) {
-    S.stream = stream;
-    _torchTrack = stream.getVideoTracks()[0];
-    _torchOn = torchOn;
-    var v = document.getElementById('qv');
-    v.srcObject = stream; v.play().catch(function(){});
-
-    var btn = document.getElementById('btn-torch');
-    if (btn) {
-      btn.textContent      = torchOn ? '💡' : '🔦';
-      btn.style.background = torchOn ? 'rgba(255,220,0,.4)' : '';
-      btn.style.color      = torchOn ? '#fde68a' : '';
-    }
-  }).catch(function() {
-    showToast('Vaku nem támogatott ezen az eszközön', 3000);
-    var btn = document.getElementById('btn-torch');
-    if (btn) btn.style.display = 'none';
-  });
-}
-
-
-
-// Token lejárat esetén automatikus újra-bejelentkezés
+// ── TOKEN MEGÚJÍTÁS ──────────────────────────────────
 function autoReLogin() {
   try {
     var saved = localStorage.getItem('gyn_pin');
@@ -726,43 +728,44 @@ function autoReLogin() {
     if (!ses.pin || !ses.gy) { showPg('pg-login'); return; }
     apiPost('kioszkLogin', { gyartosor: ses.gy, pin: ses.pin }).then(function(r) {
       if (r && r.token) {
-        S.token = r.token;
-        saveSes();
+        S.token = r.token; saveSes();
         showToast('✅ Session megújítva', 2000);
       } else { showPg('pg-login'); }
     }).catch(function() { showPg('pg-login'); });
   } catch(e) { showPg('pg-login'); }
 }
 
+// ── KAMERA LEÁLLÍTÁS ─────────────────────────────────
 function stopCam(){
   if(S.raf){cancelAnimationFrame(S.raf);S.raf=null;}
-  // Vaku kikapcsolás leállítás előtt
+  _decodeStarted = false;
   if (_torchOn && _torchTrack) {
-    var offCons = _torchIdx === 0
-      ? { advanced: [{ torch: false }] }
-      : { torch: false };
-    try { _torchTrack.applyConstraints(offCons); } catch(e) {}
+    try { _torchTrack.applyConstraints({ advanced: [{ torch: false }] }); } catch(e) {}
     _torchOn = false;
   }
   _torchTrack = null;
   var torchBtn = document.getElementById('btn-torch');
-  if (torchBtn) { torchBtn.textContent = '🔦'; torchBtn.style.background = ''; torchBtn.style.display = 'none'; }
+  if (torchBtn) { torchBtn.textContent='🔦'; torchBtn.style.background=''; torchBtn.style.display='none'; }
   if(S.stream){S.stream.getTracks().forEach(function(t){t.stop();});S.stream=null;}
   var v=document.getElementById('qv'); if(v)v.srcObject=null;
 }
 
-var _hidBuf='', _hidTimer=null;
-
-
-
+// ── DECODE LOOP ──────────────────────────────────────
+// FIX CSS: scan-line animation GPU-ra rakva (will-change:top; transform:translateZ(0))
+// FIX: %4 frame skip (~15fps) – volt %2 (~30fps); QR olvasáshoz 15fps bőven elég,
+//       kevesebb CPU → Zebra TC22-n kisebb akkumulátor fogyasztás, kevesebb thermal throttle
+// FIX: canvas width/height csak méretváltozáskor frissül (nem minden frame-ben)
 function startDecode(){
-  var _fr=0;
-  var v=document.getElementById('qv'),c=document.getElementById('qc'),ctx=c.getContext('2d'),last='';
+  var v=document.getElementById('qv'),c=document.getElementById('qc');
+  var ctx=c.getContext('2d'),last='';
+  var _lastW=0,_lastH=0,_fr=0;
   function tick(){
     S.raf=requestAnimationFrame(tick);
-    if(++_fr%2!==0)return; // 30fps elegendő
+    if(++_fr%4!==0)return;
     if(!S.stream||v.readyState<v.HAVE_ENOUGH_DATA)return;
-    c.width=v.videoWidth; c.height=v.videoHeight;
+    var vw=v.videoWidth,vh=v.videoHeight;
+    if(!vw||!vh)return;
+    if(vw!==_lastW||vh!==_lastH){ c.width=vw; c.height=vh; _lastW=vw; _lastH=vh; }
     ctx.drawImage(v,0,0);
     var d=ctx.getImageData(0,0,c.width,c.height);
     var qr=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});
@@ -773,11 +776,78 @@ function startDecode(){
   tick();
 }
 
-// Helyi duplikátum védelem
-var _recentScans = {};  // key→timestamp (5 perces duplikátum védelem)
+// ── ZEBRA TC22 – DATAWEDGE / HID KEYBOARD WEDGE ─────
+// A Zebra beépített 2D imager (SE4100) DataWedge "Keystroke output" módban
+// billentyűleütésként küldi az adatot (gyorsan, Enter lezárással).
+// Ez jobb mint a kamera: sérült QR kódokat is olvas, nem kell jsQR feldolgozás.
+// Konfiguráció: DataWedge → Profile → Keystroke output: ON, Enter a végén.
+// A keyboard wedge input kezelése:
+var _hidBuf='', _hidTimer=null;
+document.addEventListener('keydown', function(e){
+  // Ha manuális overlay nyitva van: ne interferáljon
+  var mo = document.getElementById('manual-overlay');
+  if (mo && mo.classList.contains('on')) return;
+  // Csak scan oldalon aktív
+  var pg = document.querySelector('.pg.on');
+  if (!pg || pg.id !== 'pg-scan') return;
+  // Printable karakterek gyűjtése
+  if (e.key && e.key.length === 1) {
+    _hidBuf += e.key;
+    clearTimeout(_hidTimer);
+    // Ha 150ms-en belül nem jön újabb karakter → scan befejezve
+    _hidTimer = setTimeout(function(){
+      var buf = _hidBuf.trim().toUpperCase();
+      _hidBuf = '';
+      if (buf.length >= 2) onScan(buf);
+    }, 150);
+  } else if (e.key === 'Enter' || e.key === 'Tab') {
+    // Enter / Tab → DataWedge lezárta a scan-t
+    clearTimeout(_hidTimer);
+    var buf2 = _hidBuf.trim().toUpperCase();
+    _hidBuf = '';
+    if (buf2.length >= 2) onScan(buf2);
+    e.preventDefault();
+  }
+});
 
+// ── DUPLIKÁTUM VÉDELEM ───────────────────────────────
+var _recentScans = {};
+// Periodikus cleanup: 1 percenként törli a 60mp-nél régebbi bejegyzéseket
+setInterval(function(){
+  var now=Date.now();
+  Object.keys(_recentScans).forEach(function(k){
+    if(now-_recentScans[k]>60000) delete _recentScans[k];
+  });
+}, 60000);
+
+// ── MANUÁLIS BEVITEL ─────────────────────────────────
+function openManual(){
+  var ov = document.getElementById('manual-overlay');
+  var inp = document.getElementById('manual-inp');
+  if (!ov) return;
+  ov.classList.add('on');
+  inp.value='';
+  setTimeout(function(){ inp.focus(); }, 100);
+}
+function closeManual(){
+  var ov = document.getElementById('manual-overlay');
+  if (ov) ov.classList.remove('on');
+}
+function submitManual(){
+  var inp = document.getElementById('manual-inp');
+  var val = (inp.value||'').trim().toUpperCase();
+  if (!val || val.length < 2) {
+    inp.style.borderColor='#ef4444';
+    setTimeout(function(){ inp.style.borderColor=''; },1200);
+    return;
+  }
+  closeManual();
+  onScan(val); // ugyanaz a feldolgozás mint QR scan esetén
+}
+
+// ── SCAN FELDOLGOZÁS ─────────────────────────────────
 function onScan(raw){
-  // MOSÁS MÓD: egyszerű scan
+  // MOSÁS MÓD
   var _gyN = (S.gy||'').toLowerCase().replace(/[áéíóöőúüű]/g,function(c){
     return {á:'a',é:'e',í:'i',ó:'o',ö:'o',ő:'o',ú:'u',ü:'u',ű:'u'}[c]||c;});
   if (_gyN.indexOf('mos') >= 0) {
@@ -785,16 +855,13 @@ function onScan(raw){
     var _kocsi = raw.trim().toUpperCase();
     if(!_kocsi||_kocsi.length<2)return;
     S.busy=true;
-    // AZONNALI visszajelzés (nem vár szerverre)
     S.cnt++;
     document.getElementById('m-cnt').textContent=S.cnt;
     setStatus('ok','🚿 '+_kocsi+' – Lemosva ✅');
-    showScanOK(_kocsi);  // nagy zöld overlay
+    showScanOK(_kocsi);
     beepOK(); doFlash('ok');
-    // Zseblámpa automatikus kikapcsolás
     if(_torchOn){ toggleTorch(); }
     document.getElementById('m-last').textContent='🚿 '+_kocsi;
-    // Szerver hívás háttérben
     apiPost('submitMosas',{token:S.token,kocsi:_kocsi,eszkoz:S.gy}).then(function(r){
       S.busy=false;
       if(r&&r.dupla){
@@ -807,7 +874,6 @@ function onScan(raw){
       S.busy=false;
       setStatus('err','Hiba: '+(e.message||'?'));
     });
-    // busy gyors feloldása (mosásnál 200ms cooldown elég)
     setTimeout(function(){S.busy=false;},200);
     return;
   }
@@ -816,41 +882,34 @@ function onScan(raw){
   var text=raw.trim().toUpperCase();
   if(!text||text.length<2)return;
 
-  // HELYI duplikátum check: 30 mp (véletlen dupla tap ellen)
-  // Visszaforgatott kocsik 30mp után újra scannelhetők
+  // Helyi duplikátum check: 30 mp
   var now5=Date.now();
   var key=text+'_'+S.gy+'_'+S.faz;
   var lastTs=_recentScans[key]||0;
-  if(now5-lastTs < 30000){ // 30 másodperc
+  if(now5-lastTs < 30000){
     setStatus('dup','⚠️ Dupla scan (30 mp): '+text);
     beepDUP(); doFlash('dup'); return;
   }
   _recentScans[key]=now5;
 
-  // AZONNALI visszajelzés - nem várunk a szerverre
   S.busy=true;
   S.cnt++;
   document.getElementById('m-cnt').textContent=S.cnt;
   document.getElementById('m-last').textContent='Utolso: '+text;
-  setStatus('ok','✅ '+text+' – Rogzítve');
+  setStatus('ok','✅ '+text+' – Rögzítve');
   showScanOK(text); doFlash('ok'); beepOK();
-  // Zseblámpa automatikus kikapcsolás scan után
   if(_torchOn){ toggleTorch(); }
   saveSes();
 
-  // Háttérben szinkronizálás a szerverrel
   apiPost('submitScan',{kocsi_szam:text,gyartosor:S.gy,fazis:S.faz,cikkszam:S.cs||'',sokkolo:S.sk||''})
     .then(function(r){
       if(r && r.duplicate){
-        // Szerver duplikált - visszavonjuk
         S.cnt--;
         document.getElementById('m-cnt').textContent=S.cnt;
-        var ix=_recentScans.indexOf(key);
-        if(ix>=0)_recentScans.splice(ix,1);
+        delete _recentScans[key];
         setStatus('dup','⚠️ Szerver: már leolvasva: '+text);
         doFlash('dup'); beepDUP();
       } else if(r && r.ok) {
-        // Frissítjük a termék infót ha a szerver megtalálta
         if(r.cikkszam) {
           var tEl=document.getElementById('m-termek');
           if(tEl) tEl.textContent='📦 '+r.cikkszam;
@@ -860,29 +919,21 @@ function onScan(raw){
       }
     }).catch(function(e){
       var msg = (e && e.message) ? e.message : 'timeout';
-      // Token hiba → auto megújítás
       if (msg.toLowerCase().indexOf('rvénytelen') >= 0 ||
           msg.toLowerCase().indexOf('token') >= 0) {
         setStatus('warn', '⚠️ Session lejárt, megújítás...');
         autoReLogin();
       } else {
-      var _em = (e && e.message) ? e.message : '';
-      if (_em && (_em.indexOf('rvénytelen') >= 0 || _em.indexOf('token') >= 0)) {
-        setStatus('warn','⚠️ Token lejárt, megújítás...');
-        setTimeout(autoReLogin, 1200);
-        return;
-      }
         setStatus('ok','✅ '+text+' (szerver: '+msg+')');
       }
     }).finally(function(){
-      setTimeout(function(){S.busy=false;},300); // rövid cooldown
+      setTimeout(function(){S.busy=false;},300);
     });
 }
 
+// ── NAVIGÁCIÓ ────────────────────────────────────────
 function doExit(){
   stopCam(); clearSes();
-  var _sb=document.getElementById('btn-stp'); if(_sb) _sb.style.display='';
-  // Beállítások gomb visszaállítása (mosás mód esetén volt elrejtve)
   var stpBtn = document.getElementById('btn-stp');
   if (stpBtn) stpBtn.style.display = '';
   showPg('pg-login');
@@ -891,7 +942,7 @@ function doExit(){
 }
 function doSetupPg(){stopCam();fillSetup();showPg('pg-setup');}
 
-// INIT
+// ── INIT ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',function(){
   function on(id,fn){
     var el=document.getElementById(id); if(!el)return;
@@ -903,11 +954,20 @@ document.addEventListener('DOMContentLoaded',function(){
   on('btn-back',function(){showPg('pg-login');loadGy();});
   on('btn-exit',doExit);
   on('btn-stp',doSetupPg);
+  on('btn-manual-ok',submitManual);
+  on('btn-manual-cancel',closeManual);
+
   document.getElementById('m-pin').addEventListener('input',function(){
     if(this.value.length===4)doLogin();
   });
   document.getElementById('m-faz').addEventListener('change',updSkRow);
   document.getElementById('m-tsrch').addEventListener('input',function(){filterT(this.value);});
+
+  // Manuális input: Enter = rögzít
+  document.getElementById('manual-inp').addEventListener('keydown',function(e){
+    if(e.key==='Enter'){ e.preventDefault(); submitManual(); }
+    if(e.key==='Escape'){ closeManual(); }
+  });
 
   history.pushState(null,'');
   window.addEventListener('popstate',function(){
@@ -917,16 +977,36 @@ document.addEventListener('DOMContentLoaded',function(){
     else if(p.id==='pg-setup'){showPg('pg-login');loadGy();}
   });
 
+  // FIX: visibilitychange – tab visszatéréskor stream check
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState !== 'visible') return;
+    var pg = document.querySelector('.pg.on');
+    if(pg && pg.id === 'pg-scan'){
+      var streamOk = S.stream && S.stream.getVideoTracks().some(function(t){
+        return t.readyState === 'live';
+      });
+      if(!streamOk){ setStatus('warn','⚠️ Kamera újraindítás...'); setTimeout(startCam, 800); }
+    }
+  });
+  window.addEventListener('focus', function(){
+    var pg = document.querySelector('.pg.on');
+    if(pg && pg.id === 'pg-scan'){
+      var streamOk = S.stream && S.stream.getVideoTracks().some(function(t){
+        return t.readyState === 'live';
+      });
+      if(!streamOk){ setTimeout(startCam, 600); }
+    }
+  });
+
   // Session visszaállítás
   try{
     var ses=JSON.parse(localStorage.getItem('ks2')||'null');
     if(ses&&ses.token&&(Date.now()-ses.ts)<43200000){
       S.token=ses.token;S.gy=ses.gy;S.faz=ses.faz;S.cs=ses.cs;S.sk=ses.sk;
-      // Mosás session: fázis override
       var _sesGy = (S.gy||'').toLowerCase().replace(/[áéíóöőúüű]/g,function(c){
         return {á:'a',é:'e',í:'i',ó:'o',ö:'o',ő:'o',ú:'u',ü:'u',ű:'u'}[c]||c;});
       if (_sesGy.indexOf('mos') >= 0) S.faz = 'Kocsimosás';
-      S.cnt=ses.cnt||0; // leolvasásszám visszaállítása
+      S.cnt=ses.cnt||0;
       api('getMasterData').then(function(d){S.md=d;S.termekek=(d.termekek||[]);});
       goScan(); return;
     }
@@ -934,31 +1014,26 @@ document.addEventListener('DOMContentLoaded',function(){
 
   loadGy();
 });
-  // ── Service Worker: automatikus frissítés ──────────────
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').then(function(reg) {
-      console.log('[PWA] SW regisztrálva:', reg.scope);
 
-      // Figyeljük ha új verzió érkezett
-      reg.addEventListener('updatefound', function() {
-        var newWorker = reg.installing;
-        newWorker.addEventListener('statechange', function() {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // Új verzió elérhető → automatikus újratöltés
-            console.log('[PWA] Új verzió – újratöltés...');
-            showToast('🔄 Frissítés letöltve – újratöltés...', 2000);
-            setTimeout(function() { window.location.reload(); }, 2200);
-          }
-        });
+// ── SERVICE WORKER ───────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').then(function(reg) {
+    console.log('[PWA] SW regisztrálva:', reg.scope);
+    reg.addEventListener('updatefound', function() {
+      var newWorker = reg.installing;
+      newWorker.addEventListener('statechange', function() {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          console.log('[PWA] Új verzió – újratöltés...');
+          showToast('🔄 Frissítés letöltve – újratöltés...', 2000);
+          setTimeout(function() { window.location.reload(); }, 2200);
+        }
       });
-    }).catch(function(e) { console.log('[PWA] SW hiba:', e); });
-
-    // Ha a SW frissült és átvette az irányítást → reload
-    navigator.serviceWorker.addEventListener('controllerchange', function() {
-      window.location.reload();
     });
-  }
-
+  }).catch(function(e) { console.log('[PWA] SW hiba:', e); });
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    window.location.reload();
+  });
+}
 </script>
 </body>
 </html>
