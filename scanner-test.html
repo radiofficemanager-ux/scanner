@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kiosk Scanner">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="manifest" href="manifest.json">
+<title>Kiosk Scanner</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;
+  background:#0a0f1e;color:#f1f5f9;overflow:hidden;touch-action:manipulation}
+.pg{display:none;min-height:100svh;min-height:100vh;flex-direction:column;
+  align-items:center;justify-content:center;padding:clamp(1rem,4vw,2rem)}
+.pg.on{display:flex}
+#pg-scan{padding:0;background:#000}
+.card{background:#0f172a;border:1px solid #1e293b;
+  border-radius:clamp(12px,3vw,20px);padding:clamp(1.25rem,4vw,2rem);
+  width:100%;max-width:440px}
+.lbl{display:block;font-size:clamp(.7rem,2.5vw,.82rem);font-weight:700;
+  color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.35rem}
+select,input[type=text],input[type=password]{
+  width:100%;padding:clamp(.75rem,3vw,1rem);border:2px solid #1e293b;
+  border-radius:10px;background:#020617;color:#f1f5f9;
+  font-size:clamp(.95rem,3.5vw,1.05rem);outline:none;
+  appearance:none;-webkit-appearance:none;margin-bottom:.65rem}
+select:focus,input:focus{border-color:#38bdf8}
+.pin{font-size:clamp(1.8rem,7vw,2.2rem)!important;letter-spacing:.5rem;
+  text-align:center;font-weight:800}
+select[size]{height:auto;padding:.25rem 0!important;font-size:clamp(.85rem,3vw,1rem)!important}
+.btn{display:flex;align-items:center;justify-content:center;gap:.5rem;
+  width:100%;padding:clamp(.9rem,3.5vw,1.1rem);border:none;
+  border-radius:clamp(10px,2.5vw,14px);font-size:clamp(1rem,3.8vw,1.1rem);
+  font-weight:800;cursor:pointer;margin-bottom:.5rem;
+  min-height:clamp(50px,12vw,60px);user-select:none}
+.btn-blue{background:#38bdf8;color:#0f172a}
+.btn-blue:active{background:#0ea5e9}
+.btn-gray{background:#1e293b;color:#94a3b8;border:1px solid #334155}
+.btn-gray:active{background:#334155}
+.btn-amber{background:#f59e0b;color:#0f172a}
+.btn-amber:active{background:#d97706}
+#pg-login{background:linear-gradient(160deg,#0f172a,#0c1a3a)}
+.logo{text-align:center;margin-bottom:clamp(1rem,4vw,1.5rem)}
+.logo .ico{font-size:clamp(2.5rem,10vw,3.5rem)}
+.logo h1{font-size:clamp(1.1rem,4.5vw,1.4rem);font-weight:800;color:#38bdf8;margin-top:.4rem}
+.logo p{font-size:clamp(.75rem,2.8vw,.9rem);color:#475569}
+.err{color:#f87171;font-size:clamp(.78rem,2.8vw,.88rem);
+  text-align:center;min-height:1.2rem;margin-bottom:.4rem;
+  word-break:break-all;line-height:1.5}
+#pg-setup{justify-content:flex-start;padding-top:clamp(1rem,4vw,2rem);overflow-y:auto}
+.setup-title{font-size:clamp(.95rem,3.8vw,1.1rem);font-weight:800;
+  color:#38bdf8;text-align:center;margin-bottom:clamp(.75rem,3vw,1.25rem)}
+.sc-hdr{position:absolute;top:0;left:0;right:0;z-index:200;
+  display:flex;align-items:center;gap:.4rem;
+  padding:clamp(.4rem,2vw,.65rem) clamp(.5rem,2vw,.8rem);
+  background:rgba(0,0,0,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.sc-bdg{display:flex;gap:.3rem;flex:1;flex-wrap:wrap;min-width:0;overflow:hidden}
+.bdg{background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.3);
+  border-radius:20px;padding:.2rem .55rem;
+  font-size:clamp(.62rem,2.3vw,.78rem);font-weight:700;color:#7dd3fc;
+  white-space:nowrap;max-width:28vw;overflow:hidden;text-overflow:ellipsis}
+.hdr-btn{flex-shrink:0;padding:clamp(.45rem,2vw,.6rem) clamp(.75rem,3vw,1rem);
+  border:1.5px solid rgba(255,255,255,.2);border-radius:8px;
+  background:rgba(255,255,255,.1);color:#fff;
+  font-size:clamp(.78rem,3vw,.92rem);font-weight:800;
+  min-height:clamp(44px,10vw,52px);min-width:clamp(55px,13vw,75px);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;user-select:none}
+.hdr-btn.exit{background:rgba(239,68,68,.25);
+  border-color:rgba(239,68,68,.45);color:#fca5a5}
+.hdr-btn:active{transform:scale(.93)}
+.hdr-btn.active-mode{background:rgba(56,189,248,.3);border-color:rgba(56,189,248,.6);color:#38bdf8}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+canvas#qc{display:none}
+.qr-box{position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-60%);
+  width:min(62vw,260px);height:min(62vw,260px);
+  border:2.5px solid #38bdf8;border-radius:14px;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.48);z-index:10;pointer-events:none}
+/* FIX CSS: will-change + translateZ → GPU layer, nem konkurál a RAF loop-pal */
+.scan-line{position:absolute;left:4%;right:4%;height:2px;
+  background:linear-gradient(90deg,transparent,#38bdf8,transparent);
+  will-change:top;transform:translateZ(0);
+  animation:sl 1.8s ease-in-out infinite}
+@keyframes sl{0%,100%{top:6%;opacity:.5}50%{top:88%;opacity:1}}
+.sc-foot{position:absolute;bottom:0;left:0;right:0;z-index:100;
+  background:rgba(0,0,0,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  padding:clamp(.65rem,2.5vw,.9rem) clamp(.75rem,3vw,1rem) clamp(.9rem,4vw,1.2rem)}
+.cnt{font-size:clamp(2.5rem,11vw,4rem);font-weight:900;
+  color:#38bdf8;line-height:1;text-align:center}
+.cnt-lbl{font-size:clamp(.62rem,2.5vw,.75rem);text-transform:uppercase;
+  letter-spacing:.1em;color:#334155;text-align:center;margin-bottom:.4rem}
+.last{font-size:clamp(.75rem,2.8vw,.9rem);color:#475569;
+  font-family:monospace;text-align:center;margin-bottom:.5rem;min-height:1.1rem}
+.status{padding:clamp(.6rem,2.5vw,.8rem);border-radius:10px;
+  font-size:clamp(.85rem,3.2vw,1rem);font-weight:700;text-align:center;
+  min-height:clamp(44px,10vw,52px);display:flex;align-items:center;justify-content:center}
+.s-idle{background:rgba(255,255,255,.05);color:#334155}
+.s-ok  {background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:#86efac}
+.s-dup {background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fcd34d}
+.s-err {background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
+/* FIX: s-warn osztály hiányzott – setStatus('warn',...) hívás létező helyen */
+.s-warn{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fcd34d}
+#flash{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:900;transition:opacity .2s}
+#flash.ok{background:rgba(34,197,94,.55)}
+#flash.err{background:rgba(239,68,68,.5)}
+#flash.dup{background:rgba(245,158,11,.45)}
+.fon{opacity:1!important}
+/* Siker overlay */
+#scan-ok-overlay{
+  position:fixed;inset:0;z-index:800;pointer-events:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .15s}
+#scan-ok-overlay.show{opacity:1}
+.ok-icon{font-size:clamp(5rem,20vw,9rem);line-height:1}
+.ok-text{font-size:clamp(1.5rem,6vw,3rem);font-weight:900;color:#fff;
+  text-shadow:0 2px 20px rgba(0,0,0,.5);margin-top:.5rem;text-align:center}
+#toast{position:fixed;top:clamp(.5rem,2vw,.75rem);left:50%;
+  transform:translateX(-50%);z-index:999;background:#1e293b;color:#f1f5f9;
+  padding:clamp(.6rem,2.5vw,.8rem) clamp(1rem,3.5vw,1.4rem);border-radius:10px;
+  font-size:clamp(.82rem,3vw,.95rem);font-weight:600;
+  box-shadow:0 4px 20px rgba(0,0,0,.6);max-width:92vw;text-align:center;
+  pointer-events:none;transition:opacity .25s;opacity:0}
+#toast.on{opacity:1}
+.spin{display:inline-block;width:1em;height:1em;
+  border:2px solid rgba(255,255,255,.25);border-top-color:currentColor;
+  border-radius:50%;animation:sp .7s linear infinite;vertical-align:-.1em;margin-right:.3rem}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── MANUÁLIS BEVITEL OVERLAY ── */
+#manual-overlay{
+  position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.85);
+  display:none;align-items:center;justify-content:center;padding:1rem}
+#manual-overlay.on{display:flex}
+#manual-card{
+  background:#0f172a;border:1px solid #1e293b;border-radius:20px;
+  padding:1.5rem;width:100%;max-width:360px}
+#manual-card h3{font-size:1.1rem;font-weight:800;color:#f59e0b;
+  text-align:center;margin-bottom:1rem}
+#manual-inp{
+  width:100%;padding:1rem;border:2px solid #334155;border-radius:10px;
+  background:#020617;color:#f1f5f9;font-size:1.6rem;font-weight:800;
+  font-family:monospace;text-align:center;letter-spacing:.15em;
+  outline:none;text-transform:uppercase;margin-bottom:.75rem}
+#manual-inp:focus{border-color:#f59e0b}
+#manual-hint{font-size:.78rem;color:#475569;text-align:center;margin-bottom:.75rem}
+.manual-btns{display:flex;gap:.5rem}
+.manual-btns button{flex:1}
+</style>
+</head>
+<body>
+<div id="flash"></div>
+<div id="toast"></div>
+<div id="scan-ok-overlay">
+  <div class="ok-icon">✅</div>
+  <div class="ok-text" id="ok-text"></div>
+</div>
+
+<!-- MANUÁLIS BEVITEL OVERLAY (sérült / nem olvasható QR kód esetén) -->
+<div id="manual-overlay">
+  <div id="manual-card">
+    <h3>⌨️ Manuális kocsi bevitel</h3>
+    <input id="manual-inp" type="text" inputmode="text"
+      placeholder="pl. K-0042" autocomplete="off" maxlength="20">
+    <div id="manual-hint">Írd be a kocsiszámot a QR kódról / kocsiról</div>
+    <div class="manual-btns">
+      <button class="btn btn-amber" id="btn-manual-ok">✅ Rögzít</button>
+      <button class="btn btn-gray" id="btn-manual-cancel">✕ Mégse</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div class="pg on" id="pg-login">
+  <div class="card">
+    <div class="logo">
+      <div class="ico">🏭</div>
+      <h1>Gyártásnyomkövető</h1>
+      <p>Kiosk belépés</p>
+    </div>
+    <label class="lbl">Gyártósor</label>
+    <select id="m-gy"><option value="">Betöltés...</option></select>
+    <label class="lbl">PIN kód</label>
+    <input id="m-pin" type="password" inputmode="numeric"
+      maxlength="4" class="pin" placeholder="●●●●" autocomplete="off">
+    <div class="err" id="m-err"></div>
+    <button class="btn btn-blue" id="btn-login">⚡ Belépés</button>
+  </div>
+</div>
+
+<!-- SETUP -->
+<div class="pg" id="pg-setup">
+  <div class="card">
+    <div class="setup-title">⚙️ Állomás beállítása</div>
+    <label class="lbl">Fázis</label>
+    <select id="m-faz"><option value="">— Válassz —</option></select>
+    <!-- Termék: csak Sorvége fázisnál -->
+    <div id="termek-row" style="display:none">
+      <label class="lbl">Termék kiválasztása <span style="color:#f87171">*kötelező</span></label>
+      <input id="m-tsrch" type="text" placeholder="Cikkszám vagy termék neve...">
+      <select id="m-cs" size="6"
+        style="font-size:clamp(.9rem,3.2vw,1rem);line-height:1.8;min-height:180px"></select>
+    </div>
+    <!-- Sokkoló: csak Sokkolás fázisnál -->
+    <div id="sokkolo-row" style="display:none">
+      <label class="lbl" style="margin-top:.5rem">
+        Melyik sokkolóba tolják?
+        <span style="color:#f87171;font-size:.75rem"> * kötelező</span>
+      </label>
+      <select id="m-sk" style="font-size:clamp(1rem,3.8vw,1.1rem);font-weight:700">
+        <option value="">— Válassz sokkolót —</option>
+      </select>
+    </div>
+    <button class="btn btn-blue" id="btn-start" style="margin-top:.75rem">▶ Olvasó indítása</button>
+    <button class="btn btn-gray" id="btn-back">← Vissza</button>
+  </div>
+</div>
+
+<!-- SCANNER -->
+<div class="pg" id="pg-scan">
+  <div class="sc-hdr">
+    <div class="sc-bdg" id="m-bdg"></div>
+    <button class="hdr-btn" id="btn-torch" style="display:none" title="Vaku BE" onclick="toggleTorch()">🔦</button>
+    <button class="hdr-btn" id="btn-stp">⚙️</button>
+    <button class="hdr-btn exit" id="btn-exit">🚪 Ki</button>
+  </div>
+  <video id="qv" autoplay playsinline muted></video>
+  <canvas id="qc"></canvas>
+  <div class="qr-box"><div class="scan-line"></div></div>
+  <div class="sc-foot">
+    <div style="display:flex;align-items:center;justify-content:center;gap:1rem;margin-bottom:.3rem">
+      <div style="text-align:center">
+        <div class="cnt" id="m-cnt">0</div>
+        <div class="cnt-lbl">leolvasás</div>
+      </div>
+      <div style="text-align:center;min-width:100px">
+        <div style="font-size:clamp(.65rem,2.5vw,.78rem);color:#334155;text-transform:uppercase;letter-spacing:.08em">Utolsó kocsi</div>
+        <div id="m-last" style="font-size:clamp(.9rem,3.5vw,1.1rem);font-weight:800;font-family:monospace;color:#7dd3fc;min-height:1.4rem"></div>
+        <div id="m-termek" style="font-size:clamp(.65rem,2.3vw,.75rem);color:#475569;min-height:1rem"></div>
+      </div>
+    </div>
+    <div class="status s-idle" id="m-st">Tartsd a QR kódot a keretbe</div>
+    <!-- Manuális bevitel gomb: sérült / nem olvasható kód esetén -->
+    <button id="btn-manual" onclick="openManual()"
+      style="margin-top:.5rem;width:100%;padding:.55rem;border:1.5px dashed #334155;
+      border-radius:8px;background:transparent;color:#475569;font-size:.82rem;
+      font-weight:700;cursor:pointer;letter-spacing:.02em">
+      ⌨️ Nem olvasható? → Manuális bevitel
+    </button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbwRIhFZnwY2RkA_WdBu-mnlyTSV6muaaJH2a_lgTlhgzU1UQuZ1nc6N5OYlaUAd55az/exec';
+// ═══════════════════════════════════════════════════
+
+window.onerror = function(msg,s,l){ showToast('JS hiba: '+msg+' L'+l,5000); };
+
+// ── ÁLLAPOT ─────────────────────────────────────────
+var S = {
+  token:null,gy:null,faz:null,cs:null,sk:null,
+  cnt:0,busy:false,stream:null,raf:null,md:null,termekek:[]
+};
+
+// ── HANGJELZÉS ──────────────────────────────────────
+// FIX: Singleton AudioContext – Chrome max ~6 párhuzamost enged;
+// korábbi kód minden beepnél újat hozott létre → szivárgás hosszú műszak után
+var _audioCtx = null;
+function _getAudioCtx() {
+  try {
+    if (!_audioCtx || _audioCtx.state === 'closed') {
+      _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (_audioCtx.state === 'suspended') { _audioCtx.resume(); }
+    return _audioCtx;
+  } catch(e) { return null; }
+}
+function beepOK() {
+  try {
+    var ctx = _getAudioCtx(); if (!ctx) return;
+    [0,130].forEach(function(d){
+      var o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=880;o.type='sine';
+      var t=ctx.currentTime+d/1000;
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(0.4,t+0.01);
+      g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+      o.start(t);o.stop(t+0.2);
+    });
+  } catch(e){}
+  if(navigator.vibrate)navigator.vibrate([80,40,80]);
+}
+function beepERR() {
+  try {
+    var ctx = _getAudioCtx(); if (!ctx) return;
+    var o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.frequency.value=200;o.type='sawtooth';
+    g.gain.setValueAtTime(0.35,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
+    o.start();o.stop(ctx.currentTime+0.5);
+  } catch(e){}
+  if(navigator.vibrate)navigator.vibrate([300]);
+}
+function beepDUP() {
+  try {
+    var ctx = _getAudioCtx(); if (!ctx) return;
+    [0,160,320].forEach(function(d){
+      var o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=550;o.type='triangle';
+      var t=ctx.currentTime+d/1000;
+      g.gain.setValueAtTime(0.2,t);
+      g.gain.exponentialRampToValueAtTime(0.001,t+0.12);
+      o.start(t);o.stop(t+0.12);
+    });
+  } catch(e){}
+  if(navigator.vibrate)navigator.vibrate([50,50,50]);
+}
+
+// ── JSONP API ────────────────────────────────────────
+function api(action, params) {
+  return new Promise(function(resolve, reject) {
+    var cbName = '_gcb' + Date.now() + Math.floor(Math.random()*1000);
+    var url = GAS_URL + '?callback=' + cbName + '&action=' + encodeURIComponent(action);
+    var p   = Object.assign({}, params || {});
+    if (S.token) p.token = S.token;
+    for (var k in p) {
+      url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(p[k] !== undefined ? p[k] : '');
+    }
+    // FIX: timeout 12mp (volt 20mp) – gyorsabb S.busy feloldás hálózati akadásnál
+    var timer = setTimeout(function() {
+      cleanup();
+      reject(new Error('Időtúllépés - próbáld újra'));
+    }, 12000);
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      var s = document.getElementById(cbName);
+      if (s && s.parentNode) s.parentNode.removeChild(s);
+    }
+    window[cbName] = function(data) {
+      cleanup();
+      if (data && data.ok === false) {
+        reject(new Error(data.error || 'Szerverhiba'));
+      } else {
+        resolve(data && data.result !== undefined ? data.result : data);
+      }
+    };
+    var script = document.createElement('script');
+    script.id  = cbName;
+    script.src = url;
+    script.onerror = function() {
+      cleanup();
+      reject(new Error('Hálózati hiba. GAS URL helyes?'));
+    };
+    document.head.appendChild(script);
+  });
+}
+function apiPost(action, data) { return api(action, data); }
+
+// ── UI SEGÉDFÜGGVÉNYEK ───────────────────────────────
+var _tt;
+function showToast(msg,ms){
+  var el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('on');
+  clearTimeout(_tt); _tt=setTimeout(function(){el.classList.remove('on');},ms||2500);
+}
+function doFlash(type){
+  var el=document.getElementById('flash');
+  el.className=type+' fon';
+  setTimeout(function(){el.classList.remove('fon');},type==='ok'?350:250);
+}
+function showPg(id){
+  document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on');});
+  document.getElementById(id).classList.add('on');
+}
+var _okTimer;
+function showScanOK(text) {
+  var ov  = document.getElementById('scan-ok-overlay');
+  var txt = document.getElementById('ok-text');
+  if (!ov) return;
+  if (txt) txt.textContent = text;
+  ov.classList.add('show');
+  clearTimeout(_okTimer);
+  _okTimer = setTimeout(function() { ov.classList.remove('show'); }, 800);
+}
+function setStatus(type,msg){
+  var el=document.getElementById('m-st');
+  el.className='status s-'+type; el.textContent=msg;
+}
+function showErr(msg){ var el=document.getElementById('m-err'); if(el) el.textContent=msg; }
+function saveSes(){
+  try{localStorage.setItem('ks2',JSON.stringify({
+    token:S.token,gy:S.gy,faz:S.faz,cs:S.cs,sk:S.sk,ts:Date.now(),cnt:S.cnt
+  }));}catch(e){}
+}
+function clearSes(){
+  try{localStorage.removeItem('ks2');}catch(e){}
+  S.token=S.gy=S.faz=S.cs=S.sk=null; S.cnt=0;
+}
+
+// ── LOGIN ────────────────────────────────────────────
+function loadGy(){
+  showErr('');
+  if(S.md){ fillGySel(S.md); return; }
+  var sel=document.getElementById('m-gy');
+  sel.innerHTML='<option>Betöltés...</option>';
+  api('getMasterData').then(function(d){
+    S.md=d; fillGySel(d);
+  }).catch(function(e){
+    var sel2=document.getElementById('m-gy');
+    if(sel2) sel2.innerHTML='<option value="">Hiba!</option>';
+    showErr('Hiba: '+e.message);
+  });
+}
+function fillGySel(d){
+  var sel=document.getElementById('m-gy'); if(!sel)return;
+  sel.innerHTML='<option value="">Válassz gyártósort...</option>';
+  (d.gyartosok||[]).forEach(function(g){
+    var o=document.createElement('option');
+    o.value=o.textContent=g['Nev']||g['Név']||'';
+    sel.appendChild(o);
+  });
+}
+function doLogin(){
+  var gy=document.getElementById('m-gy').value;
+  var pin=document.getElementById('m-pin').value;
+  var btn=document.getElementById('btn-login');
+  showErr('');
+  if(!gy){showErr('Válassz gyártósort!');return;}
+  if(pin.length!==4){showErr('4 számjegyű PIN kell!');return;}
+  btn.innerHTML='<span class="spin"></span>Belépés...'; btn.disabled=true;
+  apiPost('kioszkLogin',{gyartosor:gy,pin:pin}).then(function(r){
+    S.token=r.token; S.gy=r.gyartosor; saveSes();
+    try { localStorage.setItem('gyn_pin', JSON.stringify({gy:gy,pin:pin})); } catch(le){}
+    var _gyNL = r.gyartosor.toLowerCase()
+      .replace(/á/g,'a').replace(/é/g,'e').replace(/í/g,'i')
+      .replace(/[óöő]/g,'o').replace(/[úüű]/g,'u');
+    if (_gyNL.indexOf('mos') >= 0) {
+      S.faz = 'Kocsimosás';
+      showToast('🚿 Kocsimosás kész!');
+      startCam(); showPg('pg-scan');
+      document.getElementById('m-bdg').textContent  = '🚿 MOSÁS';
+      document.getElementById('m-bdg').style.background = '#0ea5e9';
+      var stpBtn = document.getElementById('btn-stp');
+      if (stpBtn) stpBtn.style.display = 'none';
+    } else {
+      fillSetup(); showPg('pg-setup');
+      showToast('Üdvözöljük! Műszak: '+r.muszak);
+    }
+  }).catch(function(e){
+    var msg = (e && e.message) ? e.message : 'Ismeretlen hiba';
+    if (msg.indexOf('Hibás PIN') >= 0 || msg.toLowerCase().indexOf('pin') >= 0) {
+      showErr('❌ Hibás PIN kód! ' + msg.replace('Hibás PIN.','').trim());
+    } else if (msg.indexOf('Zárolva') >= 0 || msg.indexOf('zárolva') >= 0) {
+      showErr('🔒 Eszköz zárolva! Admin segítség szükséges.');
+    } else if (msg.indexOf('Nincs aktív') >= 0) {
+      showErr('⚠️ Nincs regisztrált eszköz ehhez a gyártósorhoz.');
+    } else {
+      showErr('❌ ' + msg);
+    }
+    document.getElementById('m-pin').value='';
+  }).finally(function(){btn.innerHTML='⚡ Belépés'; btn.disabled=false;});
+}
+
+// ── SETUP ────────────────────────────────────────────
+function norm_s(s) {
+  if (!s) return '';
+  return String(s).toLowerCase()
+    .replace(/á/g,'a').replace(/é/g,'e').replace(/í/g,'i')
+    .replace(/[óöő]/g,'o').replace(/[úüű]/g,'u')
+    .replace(/[^a-z0-9]/g,'');
+}
+function fillSetup(){
+  var d=S.md;
+  if(!d){
+    api('getMasterData').then(function(md){S.md=md;fillSetup();})
+      .catch(function(e){showToast('Betöltési hiba: '+e.message,4000);});
+    return;
+  }
+  var gyLbl=document.getElementById('setup-gy-label');
+  if(gyLbl) gyLbl.textContent=S.gy||'—';
+  var fs = document.getElementById('m-faz');
+  if (!fs) return;
+  var gyN = norm_s(S.gy || '');
+  var isFazValt = (gyN.indexOf('fazi') >= 0 && (gyN.indexOf('valtas') >= 0 || gyN.indexOf('valt') >= 0))
+               || gyN.indexOf('csomag') >= 0;
+  var isMosas = gyN.indexOf('mos') >= 0 && gyN.indexOf('mosov') < 0;
+  if (isMosas) {
+    fs.style.display = 'none';
+    var fazLbl0 = fs.previousElementSibling;
+    if (fazLbl0 && fazLbl0.tagName === 'LABEL') fazLbl0.style.display = 'none';
+    var tRow0 = document.getElementById('termek-row');
+    if (tRow0) tRow0.style.display = 'none';
+    var sRow0 = document.getElementById('sokkolo-row');
+    if (sRow0) sRow0.style.display = 'none';
+    var bdg = document.getElementById('m-bdg');
+    if (bdg) { bdg.textContent = '🚿 MOSÁS'; bdg.style.background = '#0ea5e9'; }
+    S.faz = 'Mosás';
+    return;
+  } else if (!isFazValt) {
+    var sorvegeFaz = '';
+    (d.fazisok||[]).forEach(function(f){
+      var nev = f['Nev']||f['Név']||'';
+      if (norm_s(nev).indexOf('sorveg') >= 0 && !sorvegeFaz) sorvegeFaz = nev;
+    });
+    var targetFaz = (S.faz && norm_s(S.faz).indexOf('sorveg') >= 0) ? S.faz : sorvegeFaz;
+    fs.innerHTML = '';
+    var o = document.createElement('option');
+    o.value = o.textContent = targetFaz;
+    o.selected = true;
+    fs.appendChild(o);
+    S.faz = targetFaz;
+    fs.style.display = 'none';
+    var fazLbl = fs.previousElementSibling;
+    if (fazLbl && fazLbl.tagName === 'LABEL') fazLbl.style.display = 'none';
+  } else {
+    fs.style.display = '';
+    var fazLbl2 = fs.previousElementSibling;
+    if (fazLbl2 && fazLbl2.tagName === 'LABEL') fazLbl2.style.display = '';
+    fs.innerHTML = '<option value="">— Válassz fázist —</option>';
+    (d.fazisok||[]).sort(function(a,b){return(+a['Sorrend']||0)-(+b['Sorrend']||0);})
+      .forEach(function(f){
+        var nev = f['Nev']||f['Név']||'';
+        if (norm_s(nev).indexOf('sorveg') >= 0) return;
+        if (norm_s(nev).indexOf('kocsimos') >= 0) return;
+        var o = document.createElement('option');
+        o.value = o.textContent = nev;
+        if (S.faz && o.value === S.faz) o.selected = true;
+        fs.appendChild(o);
+      });
+  }
+  var ss = document.getElementById('m-sk');
+  if (ss) {
+    var skGep = d.sokkolo_gep || [];
+    ss.innerHTML = '<option value="">— Válassz sokkolót —</option>';
+    skGep.forEach(function(n, i) {
+      var o = document.createElement('option');
+      o.value = n; o.textContent = (i + 1) + '. ' + n;
+      if (S.sk && S.sk === n) o.selected = true;
+      ss.appendChild(o);
+    });
+    if (skGep.length === 0) {
+      ss.innerHTML += '<option disabled>⚠️ Nincs sokkoló konfigurálva</option>';
+    }
+  }
+  S.termekek=(d.termekek||[]).filter(function(t){return t.Aktiv!==false;});
+  if (!S.cs && S.gy) {
+    try { S.cs = localStorage.getItem('last_cs_'+S.gy) || ''; } catch(e){}
+  }
+  filterT(''); updSkRow();
+}
+function filterT(q){
+  var sel=document.getElementById('m-cs');
+  q=(q||'').toLowerCase();
+  var list=q?S.termekek.filter(function(t){
+    return(t.Cikkszam||'').toLowerCase().indexOf(q)>=0||
+           (t.Nev||'').toLowerCase().indexOf(q)>=0;
+  }):S.termekek;
+  sel.innerHTML='<option value="">(nincs termék)</option>';
+  list.forEach(function(t){
+    var o=document.createElement('option');
+    o.value=t.Cikkszam||'';
+    o.style.padding='4px 0';
+    var cs=t.Cikkszam||'', nev=t.Nev||'';
+    o.textContent = cs + (nev ? '  –  ' + nev : '');
+    if(S.cs&&o.value===S.cs)o.selected=true;
+    sel.appendChild(o);
+  });
+}
+function updSkRow(){
+  var fazEl = document.getElementById('m-faz');
+  if (!fazEl) return;
+  var faz = fazEl.value || '';
+  if (fazEl.style.display === 'none') {
+    faz = fazEl.options[0] ? fazEl.options[0].value : faz;
+  }
+  var fazN       = norm_s(faz);
+  var isSorvege  = fazN.indexOf('sorveg') >= 0;
+  var isSokkolas = fazN.indexOf('sokkol') >= 0;
+  var tRow = document.getElementById('termek-row');
+  var sRow = document.getElementById('sokkolo-row');
+  if (tRow) tRow.style.display = isSorvege  ? '' : 'none';
+  if (sRow) sRow.style.display = isSokkolas ? '' : 'none';
+  if (!isSorvege) {
+    var cs = document.getElementById('m-cs');
+    if (cs) cs.innerHTML = '<option value="">(auto – rendszer keresi)</option>';
+    S.cs = '';
+  }
+}
+function doStart(){
+  var faz = document.getElementById('m-faz') ? document.getElementById('m-faz').value : '';
+  var cs  = document.getElementById('m-cs')  ? document.getElementById('m-cs').value  : '';
+  var sk  = document.getElementById('m-sk')  ? document.getElementById('m-sk').value  : '';
+  var fn  = norm_s(faz);
+  var isSorvege  = fn.indexOf('sorveg') >= 0;
+  var isSokkolas = fn.indexOf('sokkol') >= 0;
+  if (!faz)               { showToast('Válassz fázist!'); return; }
+  if (isSorvege  && !cs)  { showToast('Sorvégén kötelező a termék kiválasztása!'); return; }
+  if (isSokkolas && !sk)  { showToast('Sokkoláshoz válassz sokkoló gépet!'); return; }
+  S.faz=faz; S.cs=isSorvege?cs:''; S.sk=isSokkolas?sk:'';
+  saveSes(); goScan();
+}
+
+// ── SCANNER OLDAL ────────────────────────────────────
+function goScan(){
+  var b=document.getElementById('m-bdg');
+  b.innerHTML=
+    '<span class="bdg">🏭 '+S.gy+'</span>'+
+    '<span class="bdg">🔄 '+S.faz+'</span>'+
+    (S.sk?'<span class="bdg">🧊 '+S.sk+'</span>':'')+
+    (S.cs?'<span class="bdg">📦 '+S.cs+'</span>':'');
+  try {
+    var savedCnt = localStorage.getItem('scan_cnt_' + S.gy);
+    if (savedCnt) S.cnt = parseInt(savedCnt) || 0;
+  } catch(e) {}
+  document.getElementById('m-cnt').textContent=S.cnt;
+  document.getElementById('m-last').textContent='';
+  var tEl=document.getElementById('m-termek'); if(tEl) tEl.textContent='';
+  setStatus('idle','Tartsd a QR kódot a keretbe');
+  showPg('pg-scan');
+  startCam();
+}
+
+// ── KAMERA INDÍTÁS ───────────────────────────────────
+// FIX #1: _decodeStarted flag – garantálja hogy startDecode() pontosan egyszer fut le.
+// A Zebra TC22 Android WebView-n a 'loadedmetadata' event néha NEM tüzel →
+// a decode loop soha nem indult el → "befagyott scanner" első megnyitáskor.
+// Megoldás: loadedmetadata VAGY canplay VAGY 3 másodperces fallback timeout.
+var _decodeStarted = false;
+
+function startCam(){
+  stopCam();
+  _decodeStarted = false;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    setStatus('err','Kamera API nem elérhető!'); return;
+  }
+  navigator.mediaDevices.getUserMedia({
+    video:{
+      facingMode:{ideal:'environment'},
+      width:{ideal:640,max:1280},
+      height:{ideal:480,max:720}
+    }
+  }).then(function(stream){
+    S.stream=stream;
+    var v=document.getElementById('qv');
+    v.srcObject=stream;
+    v.play().catch(function(){});
+
+    // Belső függvény: decode indítása egyszer
+    function tryStartDecode() {
+      if (_decodeStarted) return;
+      _decodeStarted = true;
+      startDecode();
+    }
+
+    // 3 esemény bármelyike trigger-elheti – amelyik elsőként jön
+    v.addEventListener('loadedmetadata', tryStartDecode, {once:true});
+    v.addEventListener('canplay',        tryStartDecode, {once:true});
+    // Fallback: ha sem loadedmetadata, sem canplay nem jön 3mp-en belül
+    // (Zebra Android WebView ismert viselkedése)
+    setTimeout(function(){
+      if (!_decodeStarted && S.stream) {
+        console.log('[Cam] Fallback: loadedmetadata nem jött – force startDecode');
+        tryStartDecode();
+      }
+    }, 3000);
+
+    setStatus('idle','Tartsd a QR kódot a keretbe');
+    initTorch(stream);
+  }).catch(function(e){
+    setStatus('err','Kamera: '+(e.name||e.message));
+    showToast('Kamera hiba: '+(e.name||e.message),4000);
+  });
+}
+
+// ── VAKU / TORCH ────────────────────────────────────
+var _torchOn=false, _torchTrack=null, _torchIdx=0;
+function initTorch(stream) {
+  var tracks = stream.getVideoTracks();
+  if (!tracks.length) return;
+  var btn = document.getElementById('btn-torch');
+  if (btn) btn.style.display = '';
+}
+function toggleTorch() {
+  if (!S.stream) return;
+  var tracks = S.stream.getVideoTracks();
+  if (!tracks.length) return;
+  var track = tracks[0];
+  _torchOn = !_torchOn;
+  track.applyConstraints({ advanced: [{ torch: _torchOn }] })
+    .then(function() {
+      var btn = document.getElementById('btn-torch');
+      if (!btn) return;
+      btn.textContent      = _torchOn ? '💡' : '🔦';
+      btn.style.background = _torchOn ? 'rgba(255,220,0,.4)' : '';
+      btn.style.color      = _torchOn ? '#fde68a' : '';
+      btn.title            = _torchOn ? 'Vaku KI' : 'Vaku BE';
+      if (window._torchTimer) clearTimeout(window._torchTimer);
+      if (_torchOn) {
+        window._torchTimer = setTimeout(function() {
+          _torchOn = false;
+          track.applyConstraints({ advanced: [{ torch: false }] }).catch(function(){});
+          btn.textContent = '🔦'; btn.style.background = ''; btn.style.color = ''; btn.title = 'Vaku BE';
+        }, 10000);
+      }
+    })
+    .catch(function() {
+      _torchOn = !_torchOn;
+      showToast('Vaku nem elérhető', 2000);
+    });
+}
+
+// ── TOKEN MEGÚJÍTÁS ──────────────────────────────────
+function autoReLogin() {
+  try {
+    var saved = localStorage.getItem('gyn_pin');
+    if (!saved) { showPg('pg-login'); return; }
+    var ses = JSON.parse(saved);
+    if (!ses.pin || !ses.gy) { showPg('pg-login'); return; }
+    apiPost('kioszkLogin', { gyartosor: ses.gy, pin: ses.pin }).then(function(r) {
+      if (r && r.token) {
+        S.token = r.token; saveSes();
+        showToast('✅ Session megújítva', 2000);
+      } else { showPg('pg-login'); }
+    }).catch(function() { showPg('pg-login'); });
+  } catch(e) { showPg('pg-login'); }
+}
+
+// ── KAMERA LEÁLLÍTÁS ─────────────────────────────────
+function stopCam(){
+  if(S.raf){cancelAnimationFrame(S.raf);S.raf=null;}
+  _decodeStarted = false;
+  if (_torchOn && _torchTrack) {
+    try { _torchTrack.applyConstraints({ advanced: [{ torch: false }] }); } catch(e) {}
+    _torchOn = false;
+  }
+  _torchTrack = null;
+  var torchBtn = document.getElementById('btn-torch');
+  if (torchBtn) { torchBtn.textContent='🔦'; torchBtn.style.background=''; torchBtn.style.display='none'; }
+  if(S.stream){S.stream.getTracks().forEach(function(t){t.stop();});S.stream=null;}
+  var v=document.getElementById('qv'); if(v)v.srcObject=null;
+}
+
+// ── DECODE LOOP ──────────────────────────────────────
+// FIX CSS: scan-line animation GPU-ra rakva (will-change:top; transform:translateZ(0))
+// FIX: %4 frame skip (~15fps) – volt %2 (~30fps); QR olvasáshoz 15fps bőven elég,
+//       kevesebb CPU → Zebra TC22-n kisebb akkumulátor fogyasztás, kevesebb thermal throttle
+// FIX: canvas width/height csak méretváltozáskor frissül (nem minden frame-ben)
+function startDecode(){
+  var v=document.getElementById('qv'),c=document.getElementById('qc');
+  var ctx=c.getContext('2d'),last='';
+  var _lastW=0,_lastH=0,_fr=0;
+  function tick(){
+    S.raf=requestAnimationFrame(tick);
+    if(++_fr%4!==0)return;
+    if(!S.stream||v.readyState<v.HAVE_ENOUGH_DATA)return;
+    var vw=v.videoWidth,vh=v.videoHeight;
+    if(!vw||!vh)return;
+    if(vw!==_lastW||vh!==_lastH){ c.width=vw; c.height=vh; _lastW=vw; _lastH=vh; }
+    ctx.drawImage(v,0,0);
+    var d=ctx.getImageData(0,0,c.width,c.height);
+    var qr=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});
+    if(qr&&qr.data&&qr.data!==last){
+      last=qr.data; setTimeout(function(){last='';},1500); onScan(qr.data);
+    }
+  }
+  tick();
+}
+
+// ── ZEBRA TC22 – DATAWEDGE / HID KEYBOARD WEDGE ─────
+// A Zebra beépített 2D imager (SE4100) DataWedge "Keystroke output" módban
+// billentyűleütésként küldi az adatot (gyorsan, Enter lezárással).
+// Ez jobb mint a kamera: sérült QR kódokat is olvas, nem kell jsQR feldolgozás.
+// Konfiguráció: DataWedge → Profile → Keystroke output: ON, Enter a végén.
+// A keyboard wedge input kezelése:
+var _hidBuf='', _hidTimer=null;
+document.addEventListener('keydown', function(e){
+  // Ha manuális overlay nyitva van: ne interferáljon
+  var mo = document.getElementById('manual-overlay');
+  if (mo && mo.classList.contains('on')) return;
+  // Csak scan oldalon aktív
+  var pg = document.querySelector('.pg.on');
+  if (!pg || pg.id !== 'pg-scan') return;
+  // Printable karakterek gyűjtése
+  if (e.key && e.key.length === 1) {
+    _hidBuf += e.key;
+    clearTimeout(_hidTimer);
+    // Ha 150ms-en belül nem jön újabb karakter → scan befejezve
+    _hidTimer = setTimeout(function(){
+      var buf = _hidBuf.trim().toUpperCase();
+      _hidBuf = '';
+      if (buf.length >= 2) onScan(buf);
+    }, 150);
+  } else if (e.key === 'Enter' || e.key === 'Tab') {
+    // Enter / Tab → DataWedge lezárta a scan-t
+    clearTimeout(_hidTimer);
+    var buf2 = _hidBuf.trim().toUpperCase();
+    _hidBuf = '';
+    if (buf2.length >= 2) onScan(buf2);
+    e.preventDefault();
+  }
+});
+
+// ── DUPLIKÁTUM VÉDELEM ───────────────────────────────
+var _recentScans = {};
+// Periodikus cleanup: 1 percenként törli a 60mp-nél régebbi bejegyzéseket
+setInterval(function(){
+  var now=Date.now();
+  Object.keys(_recentScans).forEach(function(k){
+    if(now-_recentScans[k]>60000) delete _recentScans[k];
+  });
+}, 60000);
+
+// ── MANUÁLIS BEVITEL ─────────────────────────────────
+function openManual(){
+  var ov = document.getElementById('manual-overlay');
+  var inp = document.getElementById('manual-inp');
+  if (!ov) return;
+  ov.classList.add('on');
+  inp.value='';
+  setTimeout(function(){ inp.focus(); }, 100);
+}
+function closeManual(){
+  var ov = document.getElementById('manual-overlay');
+  if (ov) ov.classList.remove('on');
+}
+function submitManual(){
+  var inp = document.getElementById('manual-inp');
+  var val = (inp.value||'').trim().toUpperCase();
+  if (!val || val.length < 2) {
+    inp.style.borderColor='#ef4444';
+    setTimeout(function(){ inp.style.borderColor=''; },1200);
+    return;
+  }
+  closeManual();
+  onScan(val); // ugyanaz a feldolgozás mint QR scan esetén
+}
+
+// ── SCAN FELDOLGOZÁS ─────────────────────────────────
+function onScan(raw){
+  // MOSÁS MÓD
+  var _gyN = (S.gy||'').toLowerCase().replace(/[áéíóöőúüű]/g,function(c){
+    return {á:'a',é:'e',í:'i',ó:'o',ö:'o',ő:'o',ú:'u',ü:'u',ű:'u'}[c]||c;});
+  if (_gyN.indexOf('mos') >= 0) {
+    if(S.busy)return;
+    var _kocsi = raw.trim().toUpperCase();
+    if(!_kocsi||_kocsi.length<2)return;
+    S.busy=true;
+    S.cnt++;
+    document.getElementById('m-cnt').textContent=S.cnt;
+    setStatus('ok','🚿 '+_kocsi+' – Lemosva ✅');
+    showScanOK(_kocsi);
+    beepOK(); doFlash('ok');
+    if(_torchOn){ toggleTorch(); }
+    document.getElementById('m-last').textContent='🚿 '+_kocsi;
+    apiPost('submitMosas',{token:S.token,kocsi:_kocsi,eszkoz:S.gy}).then(function(r){
+      S.busy=false;
+      if(r&&r.dupla){
+        S.cnt--;
+        document.getElementById('m-cnt').textContent=S.cnt;
+        setStatus('warn','⚠️ '+_kocsi+' – '+(r.message||'már mosva'));
+        beepDUP(); doFlash('dup');
+      }
+    }).catch(function(e){
+      S.busy=false;
+      setStatus('err','Hiba: '+(e.message||'?'));
+    });
+    setTimeout(function(){S.busy=false;},200);
+    return;
+  }
+
+  if(S.busy)return;
+  var text=raw.trim().toUpperCase();
+  if(!text||text.length<2)return;
+
+  // Helyi duplikátum check: 30 mp
+  var now5=Date.now();
+  var key=text+'_'+S.gy+'_'+S.faz;
+  var lastTs=_recentScans[key]||0;
+  if(now5-lastTs < 30000){
+    setStatus('dup','⚠️ Dupla scan (30 mp): '+text);
+    beepDUP(); doFlash('dup'); return;
+  }
+  _recentScans[key]=now5;
+
+  S.busy=true;
+  S.cnt++;
+  document.getElementById('m-cnt').textContent=S.cnt;
+  document.getElementById('m-last').textContent='Utolso: '+text;
+  setStatus('ok','✅ '+text+' – Rögzítve');
+  showScanOK(text); doFlash('ok'); beepOK();
+  if(_torchOn){ toggleTorch(); }
+  saveSes();
+
+  apiPost('submitScan',{kocsi_szam:text,gyartosor:S.gy,fazis:S.faz,cikkszam:S.cs||'',sokkolo:S.sk||''})
+    .then(function(r){
+      if(r && r.duplicate){
+        S.cnt--;
+        document.getElementById('m-cnt').textContent=S.cnt;
+        delete _recentScans[key];
+        setStatus('dup','⚠️ Szerver: már leolvasva: '+text);
+        doFlash('dup'); beepDUP();
+      } else if(r && r.ok) {
+        if(r.cikkszam) {
+          var tEl=document.getElementById('m-termek');
+          if(tEl) tEl.textContent='📦 '+r.cikkszam;
+        }
+        var lezMsg = r.eloz_lezarva ? ' ✓ Előző lezárva' : '';
+        setStatus('ok','✅ '+text+' → '+S.faz+lezMsg);
+      }
+    }).catch(function(e){
+      var msg = (e && e.message) ? e.message : 'timeout';
+      if (msg.toLowerCase().indexOf('rvénytelen') >= 0 ||
+          msg.toLowerCase().indexOf('token') >= 0) {
+        setStatus('warn', '⚠️ Session lejárt, megújítás...');
+        autoReLogin();
+      } else {
+        setStatus('ok','✅ '+text+' (szerver: '+msg+')');
+      }
+    }).finally(function(){
+      setTimeout(function(){S.busy=false;},300);
+    });
+}
+
+// ── NAVIGÁCIÓ ────────────────────────────────────────
+function doExit(){
+  stopCam(); clearSes();
+  var stpBtn = document.getElementById('btn-stp');
+  if (stpBtn) stpBtn.style.display = '';
+  showPg('pg-login');
+  document.getElementById('m-pin').value='';
+  showErr(''); loadGy();
+}
+function doSetupPg(){stopCam();fillSetup();showPg('pg-setup');}
+
+// ── INIT ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',function(){
+  function on(id,fn){
+    var el=document.getElementById(id); if(!el)return;
+    el.addEventListener('click',fn);
+    el.addEventListener('touchend',function(e){e.preventDefault();fn();},{passive:false});
+  }
+  on('btn-login',doLogin);
+  on('btn-start',doStart);
+  on('btn-back',function(){showPg('pg-login');loadGy();});
+  on('btn-exit',doExit);
+  on('btn-stp',doSetupPg);
+  on('btn-manual-ok',submitManual);
+  on('btn-manual-cancel',closeManual);
+
+  document.getElementById('m-pin').addEventListener('input',function(){
+    if(this.value.length===4)doLogin();
+  });
+  document.getElementById('m-faz').addEventListener('change',updSkRow);
+  document.getElementById('m-tsrch').addEventListener('input',function(){filterT(this.value);});
+
+  // Manuális input: Enter = rögzít
+  document.getElementById('manual-inp').addEventListener('keydown',function(e){
+    if(e.key==='Enter'){ e.preventDefault(); submitManual(); }
+    if(e.key==='Escape'){ closeManual(); }
+  });
+
+  history.pushState(null,'');
+  window.addEventListener('popstate',function(){
+    history.pushState(null,'');
+    var p=document.querySelector('.pg.on'); if(!p)return;
+    if(p.id==='pg-scan')doSetupPg();
+    else if(p.id==='pg-setup'){showPg('pg-login');loadGy();}
+  });
+
+  // FIX: visibilitychange – tab visszatéréskor stream check
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState !== 'visible') return;
+    var pg = document.querySelector('.pg.on');
+    if(pg && pg.id === 'pg-scan'){
+      var streamOk = S.stream && S.stream.getVideoTracks().some(function(t){
+        return t.readyState === 'live';
+      });
+      if(!streamOk){ setStatus('warn','⚠️ Kamera újraindítás...'); setTimeout(startCam, 800); }
+    }
+  });
+  window.addEventListener('focus', function(){
+    var pg = document.querySelector('.pg.on');
+    if(pg && pg.id === 'pg-scan'){
+      var streamOk = S.stream && S.stream.getVideoTracks().some(function(t){
+        return t.readyState === 'live';
+      });
+      if(!streamOk){ setTimeout(startCam, 600); }
+    }
+  });
+
+  // Session visszaállítás
+  try{
+    var ses=JSON.parse(localStorage.getItem('ks2')||'null');
+    if(ses&&ses.token&&(Date.now()-ses.ts)<43200000){
+      S.token=ses.token;S.gy=ses.gy;S.faz=ses.faz;S.cs=ses.cs;S.sk=ses.sk;
+      var _sesGy = (S.gy||'').toLowerCase().replace(/[áéíóöőúüű]/g,function(c){
+        return {á:'a',é:'e',í:'i',ó:'o',ö:'o',ő:'o',ú:'u',ü:'u',ű:'u'}[c]||c;});
+      if (_sesGy.indexOf('mos') >= 0) S.faz = 'Kocsimosás';
+      S.cnt=ses.cnt||0;
+      api('getMasterData').then(function(d){S.md=d;S.termekek=(d.termekek||[]);});
+      goScan(); return;
+    }
+  }catch(e){}
+
+  loadGy();
+});
+
+// ── SERVICE WORKER ───────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').then(function(reg) {
+    console.log('[PWA] SW regisztrálva:', reg.scope);
+    reg.addEventListener('updatefound', function() {
+      var newWorker = reg.installing;
+      newWorker.addEventListener('statechange', function() {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          console.log('[PWA] Új verzió – újratöltés...');
+          showToast('🔄 Frissítés letöltve – újratöltés...', 2000);
+          setTimeout(function() { window.location.reload(); }, 2200);
+        }
+      });
+    });
+  }).catch(function(e) { console.log('[PWA] SW hiba:', e); });
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    window.location.reload();
+  });
+}
+</script>
+</body>
+</html>
