@@ -132,7 +132,22 @@ canvas#qc{display:none}
   border-radius:50%;animation:sp .7s linear infinite;vertical-align:-.1em;margin-right:.3rem}
 @keyframes sp{to{transform:rotate(360deg)}}
 
-/* ── MANUÁLIS BEVITEL OVERLAY ── */
+/* ── KOCSIKÉRÉS POPUP ── */
+#kocsi-keres-popup{
+  position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.82);
+  display:none;align-items:flex-end;justify-content:center;padding-bottom:1.5rem}
+#kocsi-keres-popup.on{display:flex}
+#kocsi-keres-card{
+  background:#0f172a;border:2px solid #ef4444;border-radius:20px 20px 16px 16px;
+  padding:1.25rem 1.25rem 1rem;width:100%;max-width:400px}
+#kocsi-keres-card h3{font-size:1rem;font-weight:800;color:#fca5a5;
+  text-align:center;margin-bottom:.75rem}
+.kk-db-sor{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.4rem;margin-bottom:.75rem}
+.kk-db-btn{padding:.75rem .25rem;border:2px solid #334155;border-radius:10px;
+  background:transparent;color:#94a3b8;font-size:1.1rem;font-weight:800;
+  cursor:pointer;text-align:center;transition:all .15s}
+.kk-db-btn.sel{background:rgba(239,68,68,.25);border-color:#ef4444;color:#fca5a5}
+.kk-db-btn:active{transform:scale(.93)}
 #manual-overlay{
   position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.85);
   display:none;align-items:center;justify-content:center;padding:1rem}
@@ -159,6 +174,30 @@ canvas#qc{display:none}
 <div id="scan-ok-overlay">
   <div class="ok-icon">✅</div>
   <div class="ok-text" id="ok-text"></div>
+</div>
+
+<!-- KOCSIKÉRÉS POPUP -->
+<div id="kocsi-keres-popup">
+  <div id="kocsi-keres-card">
+    <h3>🚨 Nincs üres kocsim!</h3>
+    <div style="font-size:.78rem;color:#475569;text-align:center;margin-bottom:.6rem">
+      Hány kocsit kérsz?
+    </div>
+    <div class="kk-db-sor">
+      <button class="kk-db-btn" onclick="kkSelDb(1)">1</button>
+      <button class="kk-db-btn" onclick="kkSelDb(2)">2</button>
+      <button class="kk-db-btn" onclick="kkSelDb(3)">3</button>
+      <button class="kk-db-btn" onclick="kkSelDb(4)">4+</button>
+    </div>
+    <div style="display:flex;gap:.5rem">
+      <button class="btn btn-gray" style="flex:1;min-height:44px;font-size:.9rem"
+        onclick="closeKocsiKeres()">✕ Mégse</button>
+      <button class="btn btn-amber" style="flex:2" id="btn-kk-kuld"
+        onclick="kuldKocsiKeres()">📨 Kocsi kérése</button>
+    </div>
+    <div id="kk-err" style="color:#f87171;font-size:.78rem;text-align:center;
+      min-height:1rem;margin-top:.4rem"></div>
+  </div>
 </div>
 
 <!-- MANUÁLIS BEVITEL OVERLAY (sérült / nem olvasható QR kód esetén) -->
@@ -251,6 +290,15 @@ canvas#qc{display:none}
       border-radius:8px;background:transparent;color:#475569;font-size:.82rem;
       font-weight:700;cursor:pointer;letter-spacing:.02em">
       ⌨️ Nem olvasható? → Manuális bevitel
+    </button>
+    <!-- Kocsikérés gomb -->
+    <button id="btn-kocsi-keres" onclick="openKocsiKeres()"
+      style="margin-top:.35rem;width:100%;padding:.6rem;border:none;
+      border-radius:8px;background:rgba(239,68,68,.15);
+      border:1.5px solid rgba(239,68,68,.35);
+      color:#fca5a5;font-size:.85rem;font-weight:800;
+      cursor:pointer;letter-spacing:.02em;display:none">
+      🚨 Nincs üres kocsim!
     </button>
   </div>
 </div>
@@ -471,7 +519,62 @@ function doLogin(){
   }).finally(function(){btn.innerHTML='⚡ Belépés'; btn.disabled=false;});
 }
 
-// ── SETUP ────────────────────────────────────────────
+// ── KOCSIKÉRÉS ───────────────────────────────────────
+var _kkDb = 0;
+function openKocsiKeres() {
+  _kkDb = 0;
+  document.querySelectorAll('.kk-db-btn').forEach(function(b) {
+    b.classList.remove('sel');
+  });
+  var errEl = document.getElementById('kk-err');
+  if (errEl) errEl.textContent = '';
+  var popup = document.getElementById('kocsi-keres-popup');
+  if (popup) popup.classList.add('on');
+}
+function closeKocsiKeres() {
+  var popup = document.getElementById('kocsi-keres-popup');
+  if (popup) popup.classList.remove('on');
+}
+function kkSelDb(db) {
+  _kkDb = db;
+  document.querySelectorAll('.kk-db-btn').forEach(function(b) {
+    b.classList.toggle('sel', parseInt(b.textContent) === db || (db >= 4 && b.textContent === '4+'));
+  });
+}
+function kuldKocsiKeres() {
+  if (!_kkDb) {
+    var e = document.getElementById('kk-err');
+    if (e) e.textContent = 'Válaszd ki hány kocsit kérsz!';
+    return;
+  }
+  // Területkód levezetése a gyártósor nevéből
+  var gyN = (S.gy || '').toLowerCase()
+    .replace(/á/g,'a').replace(/é/g,'e').replace(/[óöő]/g,'o')
+    .replace(/[úüű]/g,'u').replace(/í/g,'i');
+  var terulet = gyN.indexOf('csomag') >= 0 ? 'csomag' : 'termeles';
+
+  var btn = document.getElementById('btn-kk-kuld');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span>'; }
+
+  api('submitKocsiKeres', {
+    gyartosor : S.gy || '',
+    kocsi_db  : _kkDb,
+    terulet   : terulet,
+    uzenet    : ''
+  }).then(function(r) {
+    closeKocsiKeres();
+    if (r && r.dupla) {
+      showToast('⚠️ Már van aktív kérés innen – várj!', 4000);
+    } else {
+      showToast('✅ Kocsikérés elküldve!', 3000);
+    }
+  }).catch(function(e) {
+    var errEl = document.getElementById('kk-err');
+    if (errEl) errEl.textContent = 'Hiba: ' + (e.message || 'próbáld újra');
+  }).finally(function() {
+    if (btn) { btn.disabled = false; btn.innerHTML = '📨 Kocsi kérése'; }
+  });
+}
 function norm_s(s) {
   if (!s) return '';
   return String(s).toLowerCase()
@@ -626,12 +729,20 @@ function goScan(){
     '<span class="bdg">🔄 '+S.faz+'</span>'+
     (S.sk?'<span class="bdg">🧊 '+S.sk+'</span>':'')+
     (S.cs?'<span class="bdg">📦 '+S.cs+'</span>':'');
-  // FONTOS: NE olvassuk vissza a cnt-t localStorage-ból itt –
-  // a doStart() már beállította a helyes értéket (0 vagy maradék)
   document.getElementById('m-cnt').textContent=S.cnt;
   document.getElementById('m-last').textContent='';
   var tEl=document.getElementById('m-termek'); if(tEl) tEl.textContent='';
   setStatus('idle','Tartsd a QR kódot a keretbe');
+  // Kocsikérés gomb: csak valódi gyártósoroknál mutatjuk (mosás, fázisváltás nem kér kocsit)
+  var kkBtn = document.getElementById('btn-kocsi-keres');
+  if (kkBtn) {
+    var gyN = (S.gy||'').toLowerCase()
+      .replace(/á/g,'a').replace(/é/g,'e').replace(/[óöő]/g,'o')
+      .replace(/[úüű]/g,'u').replace(/í/g,'i');
+    var mutat = gyN.indexOf('mos') < 0 && gyN.indexOf('csomag') < 0 &&
+                gyN.indexOf('sokkol') < 0 && gyN.indexOf('fazis') < 0;
+    kkBtn.style.display = mutat ? '' : 'none';
+  }
   showPg('pg-scan');
   startCam();
 }
