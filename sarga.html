@@ -231,9 +231,9 @@ canvas#qc{display:none}
       <h1>Sárga Pólós</h1>
       <p>Kocsi útmutató &amp; értesítő</p>
     </div>
-    <label class="lbl">Terület</label>
+    <label class="lbl">Gyártósor / Terület</label>
     <select id="sl-terulet">
-      <option value="">— Válassz területet —</option>
+      <option value="">⏳ Betöltés...</option>
     </select>
     <label class="lbl">PIN kód</label>
     <input id="sl-pin" type="password" inputmode="numeric"
@@ -283,23 +283,17 @@ canvas#qc{display:none}
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbwRIhFZnwY2RkA_WdBu-mnlyTSV6muaaJH2a_lgTlhgzU1UQuZ1nc6N5OYlaUAd55az/exec';
 // ═══════════════════════════════════════════════════════════════
 
-// Területek – a gyártósor neve PONTOSAN egyezzen a t_eszkozok sheetben regisztrált névvel!
-// Admin oldalon létre kell hozni ezeket a "gyártósorokat" és hozzá kell rendelni eszközöket PIN-nel.
-var TERULET_NEV = [
-  { ertek: 'Sárga pólós – Csomagolás', label: '📦 Csomagolás oldal' },
-  { ertek: 'Sárga pólós – Termelés',   label: '🏭 Termelés oldal'   },
-];
-
 // ── ÁLLAPOT ─────────────────────────────────────────────────────
 var S = {
   token   : null,
-  terulet : null,   // 'Sárga pólós – Csomagolás' | 'Sárga pólós – Termelés'
-  ter_kod : null,   // 'csomag' | 'termeles'  (polling szűrőhöz)
+  terulet : null,
+  ter_kod : null,   // 'csomag' | 'termeles' | '' – polling szűrőhöz
+  md      : null,   // masterData cache
   stream  : null,
   raf     : null,
   busy    : false,
-  pollTimer    : null,
-  aktiv_keres  : null,  // { ID, Gyartosor, Kocsi_db }
+  pollTimer   : null,
+  aktiv_keres : null,
   torchOn : false,
 };
 
@@ -752,14 +746,33 @@ function nyugtazAlert() {
 }
 
 // ── LOGIN ────────────────────────────────────────────────────────
+/**
+ * Login oldal inicializálása – gyártósorokat a GAS-tól tölti,
+ * ugyanúgy mint a Scanner.html (pontos egyezés a t_eszkozok névvel)
+ */
 function initLogin() {
   var sel = document.getElementById('sl-terulet');
-  sel.innerHTML = '<option value="">— Válassz területet —</option>';
-  TERULET_NEV.forEach(function(t) {
-    var o = document.createElement('option');
-    o.value = t.ertek;
-    o.textContent = t.label;
-    sel.appendChild(o);
+  sel.innerHTML = '<option value="">⏳ Betöltés...</option>';
+
+  // Utolsó választás visszatöltése
+  var lastGy = '';
+  try { lastGy = localStorage.getItem('sp_last_gy') || ''; } catch(e) {}
+
+  api('getMasterData').then(function(d) {
+    S.md = d;
+    sel.innerHTML = '<option value="">— Válassz gyártósort —</option>';
+    (d.gyartosok || []).forEach(function(g) {
+      var nev = g['Nev'] || g['Név'] || '';
+      if (!nev) return;
+      var o = document.createElement('option');
+      o.value = nev;
+      o.textContent = nev;
+      if (nev === lastGy) o.selected = true;
+      sel.appendChild(o);
+    });
+  }).catch(function(e) {
+    sel.innerHTML = '<option value="">⚠️ Betöltési hiba</option>';
+    showErr('Gyártósor lista: ' + e.message);
   });
 }
 
@@ -768,31 +781,34 @@ function doLogin() {
   var pin     = document.getElementById('sl-pin').value;
   var btn     = document.getElementById('btn-sl-login');
   showErr('');
-  if (!terulet) { showErr('Válassz területet!'); return; }
+  if (!terulet) { showErr('Válassz gyártósort!'); return; }
   if (pin.length !== 4) { showErr('4 számjegyű PIN kell!'); return; }
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span> Belépés...';
   api('kioszkLogin', { gyartosor: terulet, pin: pin }).then(function(r) {
     S.token   = r.token;
     S.terulet = r.gyartosor || terulet;
-    // Területkód meghatározása a polling szűrőhöz
-    var tn = S.terulet.toLowerCase();
-    if (tn.indexOf('csomag') >= 0)  S.ter_kod = 'csomag';
-    else if (tn.indexOf('term') >= 0) S.ter_kod = 'termeles';
-    else S.ter_kod = '';
+    // Területkód levezetése a gyártósor nevéből (polling szűrőhöz)
+    var tn = (S.terulet || '').toLowerCase()
+      .replace(/á/g,'a').replace(/é/g,'e').replace(/[óöő]/g,'o')
+      .replace(/[úüű]/g,'u').replace(/í/g,'i');
+    if      (tn.indexOf('csomag') >= 0) S.ter_kod = 'csomag';
+    else if (tn.indexOf('term')   >= 0) S.ter_kod = 'termeles';
+    else                                S.ter_kod = '';
+    // Utolsó választás mentése
+    try { localStorage.setItem('sp_last_gy', S.terulet); } catch(e) {}
     saveSession();
     initScanOldal();
   }).catch(function(e) {
     var msg = (e && e.message) ? e.message : 'Ismeretlen hiba';
-    if (msg.indexOf('Hibás PIN') >= 0 || msg.toLowerCase().indexOf('pin') >= 0) {
+    if      (msg.indexOf('Hibás PIN') >= 0 || msg.toLowerCase().indexOf('pin') >= 0)
       showErr('❌ Hibás PIN kód!');
-    } else if (msg.indexOf('Zárolva') >= 0) {
+    else if (msg.indexOf('Zárolva') >= 0)
       showErr('🔒 Eszköz zárolva! Admin segítség szükséges.');
-    } else if (msg.indexOf('Nincs aktív') >= 0) {
-      showErr('⚠️ Nincs regisztrált eszköz ehhez a területhez.');
-    } else {
+    else if (msg.indexOf('Nincs aktív') >= 0)
+      showErr('⚠️ Nincs regisztrált eszköz ehhez a gyártósorhoz.\nEllenőrizd az Admin → Eszközök menüben!');
+    else
       showErr('❌ ' + msg);
-    }
     document.getElementById('sl-pin').value = '';
   }).finally(function() {
     btn.disabled = false;
