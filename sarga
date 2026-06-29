@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sárga Pólós">
+<meta name="theme-color" content="#0a0f1e">
+<title>🟡 Sárga Pólós</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;
+  background:#0a0f1e;color:#f1f5f9;overflow:hidden;touch-action:manipulation}
+
+/* ── OLDALAK ── */
+.pg{display:none;min-height:100svh;min-height:100vh;flex-direction:column;
+  align-items:center;justify-content:center;padding:clamp(1rem,4vw,2rem)}
+.pg.on{display:flex}
+
+/* ── KÁRTYA ── */
+.card{background:#0f172a;border:1px solid #1e293b;
+  border-radius:clamp(12px,3vw,20px);padding:clamp(1.25rem,4vw,2rem);
+  width:100%;max-width:440px}
+
+/* ── GOMBOK ── */
+.btn{display:flex;align-items:center;justify-content:center;gap:.5rem;
+  width:100%;padding:clamp(.9rem,3.5vw,1.1rem);border:none;
+  border-radius:clamp(10px,2.5vw,14px);font-size:clamp(1rem,3.8vw,1.1rem);
+  font-weight:800;cursor:pointer;margin-bottom:.5rem;
+  min-height:clamp(50px,12vw,60px);user-select:none;letter-spacing:.02em}
+.btn:disabled{opacity:.45;pointer-events:none}
+.btn-amber{background:#f59e0b;color:#0a0f1e}
+.btn-amber:active{background:#d97706}
+.btn-blue{background:#38bdf8;color:#0f172a}
+.btn-blue:active{background:#0ea5e9}
+.btn-gray{background:#1e293b;color:#94a3b8;border:1px solid #334155}
+.btn-gray:active{background:#334155}
+.btn-red{background:#ef4444;color:#fff}
+.btn-red:active{background:#dc2626}
+.btn-green{background:#22c55e;color:#0f172a}
+.btn-green:active{background:#16a34a}
+
+/* ── FORM ── */
+.lbl{display:block;font-size:clamp(.7rem,2.5vw,.82rem);font-weight:700;
+  color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.35rem}
+select,input[type=text],input[type=password]{
+  width:100%;padding:clamp(.75rem,3vw,1rem);border:2px solid #1e293b;
+  border-radius:10px;background:#020617;color:#f1f5f9;
+  font-size:clamp(.95rem,3.5vw,1.05rem);outline:none;
+  appearance:none;-webkit-appearance:none;margin-bottom:.65rem}
+select:focus,input:focus{border-color:#f59e0b}
+.pin{font-size:clamp(1.8rem,7vw,2.2rem)!important;letter-spacing:.5rem;
+  text-align:center;font-weight:800}
+.err{color:#f87171;font-size:clamp(.78rem,2.8vw,.88rem);
+  text-align:center;min-height:1.2rem;margin-bottom:.4rem}
+
+/* ── LOGIN OLDAL ── */
+#pg-login{background:linear-gradient(160deg,#0f172a,#1c0a00)}
+.logo .ico{font-size:clamp(2.5rem,10vw,3.5rem)}
+.logo h1{font-size:clamp(1.1rem,4.5vw,1.4rem);font-weight:800;color:#f59e0b;margin-top:.4rem}
+.logo p{font-size:clamp(.75rem,2.8vw,.9rem);color:#475569}
+.logo{text-align:center;margin-bottom:clamp(1rem,4vw,1.5rem)}
+
+/* ── SCAN OLDAL ── */
+#pg-scan{padding:0;background:#000;position:relative}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+canvas#qc{display:none}
+.qr-box{position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-60%);
+  width:min(62vw,260px);height:min(62vw,260px);
+  border:2.5px solid #f59e0b;border-radius:14px;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.5);z-index:10;pointer-events:none}
+.scan-line{position:absolute;left:4%;right:4%;height:2px;
+  background:linear-gradient(90deg,transparent,#f59e0b,transparent);
+  will-change:top;transform:translateZ(0);
+  animation:sl 1.8s ease-in-out infinite}
+@keyframes sl{0%,100%{top:6%;opacity:.5}50%{top:88%;opacity:1}}
+
+/* Scan fejléc */
+.sc-hdr{position:absolute;top:0;left:0;right:0;z-index:200;
+  display:flex;align-items:center;gap:.4rem;
+  padding:clamp(.4rem,2vw,.65rem) clamp(.5rem,2vw,.8rem);
+  background:rgba(0,0,0,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.sc-bdg{display:flex;gap:.3rem;flex:1;flex-wrap:wrap;min-width:0;overflow:hidden}
+.bdg{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.35);
+  border-radius:20px;padding:.2rem .55rem;
+  font-size:clamp(.62rem,2.3vw,.78rem);font-weight:700;color:#fcd34d;
+  white-space:nowrap;max-width:32vw;overflow:hidden;text-overflow:ellipsis}
+.hdr-btn{flex-shrink:0;padding:clamp(.45rem,2vw,.6rem) clamp(.75rem,3vw,1rem);
+  border:1.5px solid rgba(255,255,255,.2);border-radius:8px;
+  background:rgba(255,255,255,.1);color:#fff;
+  font-size:clamp(.78rem,3vw,.92rem);font-weight:800;
+  min-height:clamp(44px,10vw,52px);min-width:clamp(55px,13vw,75px);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;user-select:none}
+.hdr-btn:active{transform:scale(.93)}
+.hdr-btn.exit{background:rgba(239,68,68,.25);
+  border-color:rgba(239,68,68,.45);color:#fca5a5}
+
+/* Scan lábléc */
+.sc-foot{position:absolute;bottom:0;left:0;right:0;z-index:100;
+  background:rgba(0,0,0,.9);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  padding:clamp(.65rem,2.5vw,.9rem) clamp(.75rem,3vw,1rem) clamp(.9rem,4vw,1.2rem)}
+.scan-hint{font-size:clamp(.8rem,3vw,.95rem);font-weight:600;text-align:center;
+  color:#64748b;padding:.6rem;margin-bottom:.35rem}
+
+/* ── EREDMÉNY OLDAL ── */
+#pg-result{background:#0a0f1e;justify-content:flex-start;padding-top:0;overflow-y:auto}
+.res-hdr{width:100%;background:#0f172a;border-bottom:1px solid #1e293b;
+  padding:clamp(.6rem,2.5vw,.85rem) clamp(.75rem,3vw,1rem);
+  display:flex;align-items:center;gap:.5rem;flex-shrink:0}
+.res-hdr-btn{padding:.5rem .9rem;border:1.5px solid #334155;border-radius:8px;
+  background:transparent;color:#94a3b8;font-size:.85rem;font-weight:700;cursor:pointer}
+.res-hdr-btn:active{background:#1e293b}
+.res-body{width:100%;max-width:480px;padding:clamp(1rem,4vw,1.5rem);
+  display:flex;flex-direction:column;gap:.85rem}
+
+/* Kocsi info kártya */
+.kocsi-card{background:#0f172a;border:2px solid #f59e0b;border-radius:16px;
+  padding:1.1rem 1.25rem;text-align:center}
+.kocsi-num{font-size:clamp(2.2rem,10vw,3.5rem);font-weight:900;
+  color:#f59e0b;letter-spacing:.08em;font-family:monospace}
+.kocsi-termek{font-size:clamp(.9rem,3.5vw,1.1rem);font-weight:700;
+  color:#f1f5f9;margin-top:.2rem}
+.kocsi-cs{font-size:clamp(.72rem,2.5vw,.82rem);color:#64748b;
+  font-family:monospace;margin-top:.1rem}
+
+/* Állapot sor */
+.allapot-sor{background:#0f172a;border:1px solid #1e293b;border-radius:12px;
+  padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem}
+.allapot-ikon{font-size:1.5rem;flex-shrink:0}
+.allapot-szov .fent{font-size:.72rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.06em}
+.allapot-szov .lent{font-size:.92rem;font-weight:700;color:#f1f5f9;margin-top:.1rem}
+.allapot-szov .ido{font-size:.7rem;color:#334155;margin-top:.1rem}
+
+/* Útmutató panel */
+.utvonal-panel{border-radius:14px;overflow:hidden}
+.utvonal-panel-hdr{padding:.75rem 1rem;font-size:.78rem;font-weight:800;
+  text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:.4rem}
+.utvonal-panel-hdr.van-cel{background:rgba(34,197,94,.12);color:#86efac;border-bottom:1px solid rgba(34,197,94,.2)}
+.utvonal-panel-hdr.nincs-cel{background:rgba(239,68,68,.12);color:#fca5a5;border-bottom:1px solid rgba(239,68,68,.2)}
+.cel-kártya{padding:.85rem 1rem;background:#0f172a;border-bottom:1px solid #1e293b;
+  display:flex;align-items:center;gap:.75rem;cursor:default}
+.cel-kártya:last-child{border-bottom:none}
+.cel-ikon{font-size:1.6rem;flex-shrink:0}
+.cel-szov .fent{font-size:1rem;font-weight:800;color:#fbbf24}
+.cel-szov .lent{font-size:.78rem;color:#ef4444;font-weight:700;margin-top:.2rem;
+  display:flex;align-items:center;gap:.3rem}
+.cel-szov .lent:empty{display:none}
+.cel-szov .lent.normal{color:#64748b;font-weight:500}
+.nincs-szab{padding:1rem;background:#0f172a;text-align:center;color:#475569;
+  font-size:.88rem;line-height:1.5}
+
+/* ── ALERT OVERLAY (kocsikérés) ── */
+#alert-overlay{position:fixed;inset:0;z-index:9999;
+  background:rgba(239,68,68,.97);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:1.5rem;text-align:center;animation:alertPulse 1s ease infinite alternate}
+#alert-overlay.on{display:flex}
+@keyframes alertPulse{from{background:rgba(220,38,38,.95)}to{background:rgba(239,68,68,.99)}}
+.alert-ikon{font-size:clamp(4rem,18vw,7rem);animation:shake .4s ease infinite}
+@keyframes shake{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+.alert-gy{font-size:clamp(1.4rem,6vw,2.2rem);font-weight:900;color:#fff;
+  margin:.5rem 0;text-shadow:0 2px 10px rgba(0,0,0,.3)}
+.alert-db{font-size:clamp(2.5rem,10vw,4rem);font-weight:900;
+  color:#fef08a;line-height:1}
+.alert-sub{font-size:clamp(.85rem,3.5vw,1.05rem);color:rgba(255,255,255,.8);margin-top:.25rem}
+.alert-btns{display:flex;flex-direction:column;gap:.5rem;width:100%;max-width:360px;margin-top:1.5rem}
+
+/* ── TOAST ── */
+#toast{position:fixed;top:clamp(.5rem,2vw,.75rem);left:50%;
+  transform:translateX(-50%);z-index:9998;background:#1e293b;color:#f1f5f9;
+  padding:clamp(.6rem,2.5vw,.8rem) clamp(1rem,3.5vw,1.4rem);border-radius:10px;
+  font-size:clamp(.82rem,3vw,.95rem);font-weight:600;
+  box-shadow:0 4px 20px rgba(0,0,0,.6);max-width:92vw;text-align:center;
+  pointer-events:none;transition:opacity .25s;opacity:0}
+#toast.on{opacity:1}
+
+/* ── FLASH ── */
+#flash{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:800;transition:opacity .2s}
+#flash.ok{background:rgba(34,197,94,.5)}
+#flash.err{background:rgba(239,68,68,.45)}
+.fon{opacity:1!important}
+
+/* ── SPINNER ── */
+.spin{display:inline-block;width:1em;height:1em;
+  border:2px solid rgba(255,255,255,.25);border-top-color:currentColor;
+  border-radius:50%;animation:sp .7s linear infinite;vertical-align:-.1em;margin-right:.3rem}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── NINCS ADAT OLDAL ── */
+.noadat-kártya{background:#0f172a;border:1px solid #334155;border-radius:16px;
+  padding:1.5rem;text-align:center;width:100%;max-width:440px}
+.noadat-kártya .ico{font-size:3rem;margin-bottom:.75rem}
+.noadat-kártya h2{font-size:1rem;font-weight:800;color:#f1f5f9;margin-bottom:.5rem}
+.noadat-kártya p{font-size:.85rem;color:#475569;line-height:1.5;margin-bottom:1rem}
+</style>
+</head>
+<body>
+
+<div id="flash"></div>
+<div id="toast"></div>
+
+<!-- ══ KOCSIKÉRÉS ALERT OVERLAY ══════════════════════════════════ -->
+<div id="alert-overlay">
+  <div class="alert-ikon">🚨</div>
+  <div style="font-size:clamp(.8rem,3vw,.95rem);color:rgba(255,255,255,.75);font-weight:700;margin-top:.3rem">
+    KOCSIT KÉRNEK!
+  </div>
+  <div class="alert-gy" id="alert-gy">— sor</div>
+  <div class="alert-db" id="alert-db">2</div>
+  <div class="alert-sub">db üres kocsi kell</div>
+  <div class="alert-btns">
+    <button class="btn btn-green" id="btn-alert-ok" onclick="nyugtazAlert()">
+      ✅ Megkaptam – úton vagyok!
+    </button>
+    <button class="btn btn-gray" onclick="closeAlert()" style="min-height:44px;font-size:.9rem">
+      Bezár (nem én megyek)
+    </button>
+  </div>
+</div>
+
+<!-- ══ LOGIN OLDAL ════════════════════════════════════════════════ -->
+<div class="pg on" id="pg-login">
+  <div class="card">
+    <div class="logo">
+      <div class="ico">🟡</div>
+      <h1>Sárga Pólós</h1>
+      <p>Kocsi útmutató &amp; értesítő</p>
+    </div>
+    <label class="lbl">Terület</label>
+    <select id="sl-terulet">
+      <option value="">— Válassz területet —</option>
+    </select>
+    <label class="lbl">PIN kód</label>
+    <input id="sl-pin" type="password" inputmode="numeric"
+      maxlength="4" class="pin" placeholder="●●●●" autocomplete="off">
+    <div class="err" id="sl-err"></div>
+    <button class="btn btn-amber" id="btn-sl-login">⚡ Belépés</button>
+  </div>
+</div>
+
+<!-- ══ SCANNER OLDAL ══════════════════════════════════════════════ -->
+<div class="pg" id="pg-scan">
+  <div class="sc-hdr">
+    <div class="sc-bdg" id="sc-bdg"></div>
+    <button class="hdr-btn" id="btn-torch" style="display:none" onclick="toggleTorch()">🔦</button>
+    <button class="hdr-btn exit" id="btn-sc-exit" onclick="doLogout()">🚪 Ki</button>
+  </div>
+  <video id="qv" autoplay playsinline muted></video>
+  <canvas id="qc"></canvas>
+  <div class="qr-box"><div class="scan-line"></div></div>
+  <div class="sc-foot">
+    <div class="scan-hint" id="sc-hint">Tartsd a kocsi QR kódját a keretbe</div>
+    <!-- Aktív kérés jelző csík (polling találatnál jelenik meg) -->
+    <div id="keres-csik" style="display:none;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);
+      border-radius:8px;padding:.5rem .75rem;margin-bottom:.4rem;
+      display:flex;align-items:center;gap:.5rem;font-size:.82rem;font-weight:700;color:#fca5a5">
+      <span style="font-size:1rem">🔔</span>
+      <span id="keres-csik-szov">Kocsikérés érkezett!</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EREDMÉNY OLDAL ══════════════════════════════════════════════ -->
+<div class="pg" id="pg-result">
+  <div class="res-hdr">
+    <button class="res-hdr-btn" onclick="vissza()">← Vissza</button>
+    <span style="font-size:.9rem;font-weight:700;color:#94a3b8;margin-left:.25rem">Útvonal útmutató</span>
+    <div style="flex:1"></div>
+    <span id="res-muszak" style="font-size:.72rem;color:#334155;font-weight:600"></span>
+  </div>
+  <div class="res-body" id="res-body">
+    <!-- dinamikusan töltve -->
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbwRIhFZnwY2RkA_WdBu-mnlyTSV6muaaJH2a_lgTlhgzU1UQuZ1nc6N5OYlaUAd55az/exec';
+// ═══════════════════════════════════════════════════════════════
+
+// Területek – a gyártósor neve PONTOSAN egyezzen a t_eszkozok sheetben regisztrált névvel!
+// Admin oldalon létre kell hozni ezeket a "gyártósorokat" és hozzá kell rendelni eszközöket PIN-nel.
+var TERULET_NEV = [
+  { ertek: 'Sárga pólós – Csomagolás', label: '📦 Csomagolás oldal' },
+  { ertek: 'Sárga pólós – Termelés',   label: '🏭 Termelés oldal'   },
+];
+
+// ── ÁLLAPOT ─────────────────────────────────────────────────────
+var S = {
+  token   : null,
+  terulet : null,   // 'Sárga pólós – Csomagolás' | 'Sárga pólós – Termelés'
+  ter_kod : null,   // 'csomag' | 'termeles'  (polling szűrőhöz)
+  stream  : null,
+  raf     : null,
+  busy    : false,
+  pollTimer    : null,
+  aktiv_keres  : null,  // { ID, Gyartosor, Kocsi_db }
+  torchOn : false,
+};
+
+// ── SESSION MENTÉS ───────────────────────────────────────────────
+function saveSession() {
+  try {
+    localStorage.setItem('sp_ses', JSON.stringify({
+      token   : S.token,
+      terulet : S.terulet,
+      ter_kod : S.ter_kod,
+      ts      : Date.now()
+    }));
+  } catch(e) {}
+}
+function loadSession() {
+  try {
+    var raw = localStorage.getItem('sp_ses');
+    if (!raw) return false;
+    var obj = JSON.parse(raw);
+    // 30 napos session
+    if (!obj.token || (Date.now() - (obj.ts||0)) > 30*24*3600000) return false;
+    S.token   = obj.token;
+    S.terulet = obj.terulet;
+    S.ter_kod = obj.ter_kod;
+    return true;
+  } catch(e) { return false; }
+}
+function clearSession() {
+  try { localStorage.removeItem('sp_ses'); } catch(e) {}
+  S.token = S.terulet = S.ter_kod = null;
+}
+
+// ── HANGJELZÉSEK ────────────────────────────────────────────────
+var _audioCtx = null;
+function _getAudioCtx() {
+  try {
+    if (!_audioCtx || _audioCtx.state === 'closed') {
+      _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    return _audioCtx;
+  } catch(e) { return null; }
+}
+// Rövid "bing" – kocsi sikeresen azonosítva
+function beepOK() {
+  try {
+    var ctx = _getAudioCtx(); if (!ctx) return;
+    [0, 120].forEach(function(d) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = 880; o.type = 'sine';
+      var t = ctx.currentTime + d / 1000;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.4, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      o.start(t); o.stop(t + 0.22);
+    });
+  } catch(e) {}
+  if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+}
+// Figyelmeztető "bong" – nincs szabály ehhez a kocsihoz
+function beepWARN() {
+  try {
+    var ctx = _getAudioCtx(); if (!ctx) return;
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 440; o.type = 'triangle';
+    g.gain.setValueAtTime(0.35, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    o.start(); o.stop(ctx.currentTime + 0.6);
+  } catch(e) {}
+  if (navigator.vibrate) navigator.vibrate([200]);
+}
+// Hangos riasztás – kocsikérés érkezett
+function beepALERT() {
+  try {
+    var ctx = _getAudioCtx(); if (!ctx) return;
+    [0, 250, 500, 750].forEach(function(d) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = 660; o.type = 'square';
+      var t = ctx.currentTime + d / 1000;
+      g.gain.setValueAtTime(0.5, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      o.start(t); o.stop(t + 0.2);
+    });
+  } catch(e) {}
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+}
+
+// ── JSONP API ────────────────────────────────────────────────────
+function api(action, params) {
+  return new Promise(function(resolve, reject) {
+    var cbName = '_spcb' + Date.now() + Math.floor(Math.random() * 1000);
+    var url    = GAS_URL + '?callback=' + cbName + '&action=' + encodeURIComponent(action);
+    var p      = Object.assign({}, params || {});
+    if (S.token) p.token = S.token;
+    for (var k in p) {
+      url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(p[k] !== undefined ? p[k] : '');
+    }
+    var timer = setTimeout(function() {
+      cleanup();
+      reject(new Error('Időtúllépés'));
+    }, 15000);
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      var s = document.getElementById(cbName);
+      if (s && s.parentNode) s.parentNode.removeChild(s);
+    }
+    window[cbName] = function(data) {
+      cleanup();
+      if (data && data.ok === false) {
+        reject(new Error(data.error || 'Szerverhiba'));
+      } else {
+        resolve(data && data.result !== undefined ? data.result : data);
+      }
+    };
+    var script = document.createElement('script');
+    script.id  = cbName;
+    script.src = url;
+    script.onerror = function() { cleanup(); reject(new Error('Hálózati hiba')); };
+    document.head.appendChild(script);
+  });
+}
+
+// ── UI SEGÉDFÜGGVÉNYEK ───────────────────────────────────────────
+var _tt;
+function showToast(msg, ms) {
+  var el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('on');
+  clearTimeout(_tt);
+  _tt = setTimeout(function() { el.classList.remove('on'); }, ms || 2500);
+}
+function doFlash(type) {
+  var el = document.getElementById('flash');
+  el.className = type + ' fon';
+  setTimeout(function() { el.classList.remove('fon'); }, 300);
+}
+function showPg(id) {
+  document.querySelectorAll('.pg').forEach(function(p) { p.classList.remove('on'); });
+  document.getElementById(id).classList.add('on');
+}
+function showErr(msg) {
+  var el = document.getElementById('sl-err');
+  if (el) el.textContent = msg;
+}
+
+// ── KAMERA ──────────────────────────────────────────────────────
+function startCam() {
+  stopCam();
+  var constraints = {
+    video: {
+      facingMode: 'environment',
+      width:  { ideal: 1280 },
+      height: { ideal: 720 }
+    }
+  };
+  navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+    S.stream = stream;
+    var vid = document.getElementById('qv');
+    vid.srcObject = stream;
+    vid.onloadedmetadata = function() {
+      vid.play().catch(function() {});
+      // Vaku gomb megjelenítése ha elérhető
+      try {
+        var track = stream.getVideoTracks()[0];
+        var caps  = track.getCapabilities ? track.getCapabilities() : {};
+        if (caps.torch) document.getElementById('btn-torch').style.display = '';
+      } catch(e) {}
+    };
+    vid.addEventListener('loadeddata', function() { scanLoop(); });
+    // Android WebView fallback
+    setTimeout(function() {
+      if (!S.raf) scanLoop();
+    }, 1500);
+  }).catch(function(e) {
+    showToast('Kamera hiba: ' + e.message, 5000);
+  });
+}
+function stopCam() {
+  if (S.raf) { cancelAnimationFrame(S.raf); S.raf = null; }
+  if (S.stream) {
+    S.stream.getTracks().forEach(function(t) { t.stop(); });
+    S.stream = null;
+  }
+  var vid = document.getElementById('qv');
+  if (vid) vid.srcObject = null;
+}
+function toggleTorch() {
+  if (!S.stream) return;
+  try {
+    S.torchOn = !S.torchOn;
+    S.stream.getVideoTracks()[0].applyConstraints({ advanced: [{ torch: S.torchOn }] });
+    document.getElementById('btn-torch').textContent = S.torchOn ? '🔦 BE' : '🔦';
+  } catch(e) { showToast('Vaku nem elérhető'); }
+}
+
+// ── QR SCAN LOOP ─────────────────────────────────────────────────
+var _lastQR = '', _lastQRts = 0;
+function scanLoop() {
+  var vid = document.getElementById('qv');
+  var can = document.getElementById('qc');
+  if (!vid || !can) return;
+  if (vid.readyState < 2) { S.raf = requestAnimationFrame(scanLoop); return; }
+  var W = vid.videoWidth, H = vid.videoHeight;
+  if (!W || !H) { S.raf = requestAnimationFrame(scanLoop); return; }
+  can.width = W; can.height = H;
+  var ctx = can.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(vid, 0, 0, W, H);
+  try {
+    var img  = ctx.getImageData(0, 0, W, H);
+    var code = jsQR(img.data, W, H, { inversionAttempts: 'dontInvert' });
+    if (code && code.data) {
+      var qrVal = code.data.trim().toUpperCase();
+      var now   = Date.now();
+      // 3 másodperces deduplikáció – ne kérjük le ugyanazt kétszer
+      if (qrVal === _lastQR && (now - _lastQRts) < 3000) {
+        S.raf = requestAnimationFrame(scanLoop);
+        return;
+      }
+      if (!S.busy) {
+        _lastQR   = qrVal;
+        _lastQRts = now;
+        handleQR(qrVal);
+      }
+    }
+  } catch(e) {}
+  S.raf = requestAnimationFrame(scanLoop);
+}
+
+// DataWedge (Zebra TC22 beépített szkenner) – keystroke wedge támogatás
+var _dw_buf = '', _dw_timer = null;
+document.addEventListener('keydown', function(e) {
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+  if (e.key === 'Enter') {
+    var val = _dw_buf.trim().toUpperCase();
+    _dw_buf = '';
+    if (val.length >= 2 && !S.busy) handleQR(val);
+    return;
+  }
+  if (e.key && e.key.length === 1) {
+    _dw_buf += e.key;
+    clearTimeout(_dw_timer);
+    _dw_timer = setTimeout(function() { _dw_buf = ''; }, 300);
+  }
+});
+
+// ── QR FELDOLGOZÁS ───────────────────────────────────────────────
+function handleQR(kocsi) {
+  if (S.busy) return;
+  S.busy = true;
+  doFlash('ok');
+  beepOK();
+  document.getElementById('sc-hint').textContent = '⏳ ' + kocsi + ' – lekérés...';
+
+  api('getKocsiUtvonal', { kocsi_szam: kocsi }).then(function(d) {
+    S.busy = false;
+    mutatEredmeny(d);
+  }).catch(function(e) {
+    S.busy = false;
+    doFlash('err');
+    showToast('Hiba: ' + e.message, 4000);
+    document.getElementById('sc-hint').textContent = 'Tartsd a kocsi QR kódját a keretbe';
+  });
+}
+
+// ── EREDMÉNY MEGJELENÍTÉSE ───────────────────────────────────────
+function mutatEredmeny(d) {
+  stopCam();
+
+  var now = new Date();
+  var muszak = '';
+  var h = now.getHours();
+  if (h >= 6  && h < 14) muszak = 'Reggeli műszak';
+  else if (h >= 14 && h < 22) muszak = 'Délutáni műszak';
+  else muszak = 'Éjjeli műszak';
+  var muszakEl = document.getElementById('res-muszak');
+  if (muszakEl) muszakEl.textContent = muszak;
+
+  var html = '';
+
+  // ── Kocsi info kártya
+  html += '<div class="kocsi-card">';
+  html += '<div class="kocsi-num">' + (d.kocsi || '?') + '</div>';
+  if (d.van_adat && d.termek_nev) {
+    html += '<div class="kocsi-termek">' + esc(d.termek_nev) + '</div>';
+    if (d.cikkszam && d.cikkszam !== d.termek_nev) {
+      html += '<div class="kocsi-cs">Cikkszám: ' + esc(d.cikkszam) + '</div>';
+    }
+  } else if (!d.van_adat) {
+    html += '<div class="kocsi-termek" style="color:#ef4444">⚠️ Ismeretlen kocsi</div>';
+  }
+  html += '</div>';
+
+  // ── Ha nincs adat a rendszerben
+  if (!d.van_adat) {
+    html += '<div class="noadat-kártya">';
+    html += '<div class="ico">❓</div>';
+    html += '<h2>Ez a kocsi nincs a rendszerben</h2>';
+    html += '<p>' + esc(d.uzenet || 'Ez a kocsi még nem volt beolvasva a gyártásnyomkövető rendszerben.') + '</p>';
+    html += '<button class="btn btn-amber" onclick="vissza()">← Visszaszkenneléshez</button>';
+    html += '</div>';
+    beepWARN();
+    document.getElementById('res-body').innerHTML = html;
+    showPg('pg-result');
+    return;
+  }
+
+  // ── Jelenlegi állapot sor
+  html += '<div class="allapot-sor">';
+  html += '<div class="allapot-ikon">📍</div>';
+  html += '<div class="allapot-szov">';
+  html += '<div class="fent">Jelenlegi tartózkodási hely</div>';
+  html += '<div class="lent">' + esc(d.jelenlegi_allomas || '—') + '</div>';
+  if (d.jelenlegi_fazis) {
+    html += '<div class="ido">Fázis: ' + esc(d.jelenlegi_fazis) + '</div>';
+  }
+  if (d.utolso_scan) {
+    var ts = new Date(d.utolso_scan);
+    var perc = Math.floor((Date.now() - ts.getTime()) / 60000);
+    var idoStr = perc < 1 ? 'most' : perc < 60 ? perc + ' perce' : Math.floor(perc/60) + ' órája';
+    html += '<div class="ido">Utolsó beolvasás: ' + idoStr + '</div>';
+  }
+  html += '</div></div>';
+
+  // ── Útvonal útmutató panel
+  if (d.van_szabaly && d.celok && d.celok.length > 0) {
+    html += '<div class="utvonal-panel">';
+    html += '<div class="utvonal-panel-hdr van-cel">✅ Mehet ide:</div>';
+    d.celok.forEach(function(c, i) {
+      html += '<div class="cel-kártya">';
+      html += '<div class="cel-ikon">' + (i === 0 ? '➡️' : '↪️') + '</div>';
+      html += '<div class="cel-szov">';
+      html += '<div class="fent">' + esc(c.cel_allomas) + '</div>';
+      if (c.megjegyzes) {
+        var isAllergen = c.megjegyzes.toLowerCase().indexOf('allerg') >= 0;
+        html += '<div class="lent' + (isAllergen ? '' : ' normal') + '">';
+        if (isAllergen) html += '⚠️ ';
+        html += esc(c.megjegyzes) + '</div>';
+      } else {
+        html += '<div class="lent normal"></div>';
+      }
+      html += '</div></div>';
+    });
+    html += '</div>';
+    beepOK();
+  } else {
+    // Nincs szabály
+    html += '<div class="utvonal-panel">';
+    html += '<div class="utvonal-panel-hdr nincs-cel">❓ Nincs rögzített szabály</div>';
+    html += '<div class="nincs-szab">';
+    html += '<p>Ehhez a kocsihoz és forrásállomáshoz<br>nincs megadva útvonal-szabály.</p>';
+    html += '<p style="margin-top:.5rem;color:#334155">Kérdezd a műszakvezetőt, vagy nézd meg<br>az admin felületen az Útvonalak tabot.</p>';
+    html += '</div></div>';
+    beepWARN();
+  }
+
+  // ── Visszagomb
+  html += '<button class="btn btn-gray" onclick="vissza()" style="margin-top:.25rem">← Következő kocsi</button>';
+
+  document.getElementById('res-body').innerHTML = html;
+  showPg('pg-result');
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function vissza() {
+  showPg('pg-scan');
+  setTimeout(function() { startCam(); }, 100);
+}
+
+// ── KOCSIKÉRÉS POLLING ───────────────────────────────────────────
+// 15 másodpercenként lekérdezi a területre érkező aktív kéréseket
+function startPolling() {
+  stopPolling();
+  pollKeresek();
+  S.pollTimer = setInterval(pollKeresek, 15000);
+}
+function stopPolling() {
+  if (S.pollTimer) { clearInterval(S.pollTimer); S.pollTimer = null; }
+}
+function pollKeresek() {
+  if (!S.token || !S.ter_kod) return;
+  api('getKocsiKeresek', { terulet: S.ter_kod }).then(function(d) {
+    var keresek = d.keresek || [];
+    if (keresek.length > 0) {
+      // Az első aktív kérést mutatjuk
+      var k = keresek[0];
+      // Ha már mutatjuk ezt az alert-et, nem csörgetjük újra
+      if (S.aktiv_keres && S.aktiv_keres.ID === k.ID) return;
+      S.aktiv_keres = k;
+      mutatAlert(k);
+    } else {
+      S.aktiv_keres = null;
+      closeAlert();
+      // Csík eltüntetése
+      var csik = document.getElementById('keres-csik');
+      if (csik) csik.style.display = 'none';
+    }
+  }).catch(function() { /* polling hiba – csendben kezeljük */ });
+}
+
+function mutatAlert(k) {
+  var ovEl = document.getElementById('alert-overlay');
+  var gyEl = document.getElementById('alert-gy');
+  var dbEl = document.getElementById('alert-db');
+  if (!ovEl) return;
+  gyEl.textContent = k.Gyartosor + ' sor';
+  dbEl.textContent = k.Kocsi_db || 1;
+  ovEl.classList.add('on');
+  beepALERT();
+  // Csík megjelenítése a scan oldalon is
+  var csik = document.getElementById('keres-csik');
+  var csikSzov = document.getElementById('keres-csik-szov');
+  if (csik && csikSzov) {
+    csikSzov.textContent = '🔔 ' + (k.Gyartosor || 'Sor') + ' – ' + (k.Kocsi_db || 1) + ' kocsi kell!';
+    csik.style.display = 'flex';
+  }
+}
+
+function closeAlert() {
+  var ovEl = document.getElementById('alert-overlay');
+  if (ovEl) ovEl.classList.remove('on');
+}
+
+function nyugtazAlert() {
+  if (!S.aktiv_keres) { closeAlert(); return; }
+  var btn = document.getElementById('btn-alert-ok');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>Küldés...';
+  var id = S.aktiv_keres.ID;
+  api('nyugtazKocsiKeres', {
+    ID          : id,
+    eszkoz_nev  : S.terulet || 'Sárga pólós'
+  }).then(function() {
+    S.aktiv_keres = null;
+    closeAlert();
+    showToast('✅ Nyugtázva! Köszönöm!', 3000);
+    var csik = document.getElementById('keres-csik');
+    if (csik) csik.style.display = 'none';
+  }).catch(function(e) {
+    showToast('Hiba: ' + e.message, 4000);
+  }).finally(function() {
+    btn.disabled = false;
+    btn.innerHTML = '✅ Megkaptam – úton vagyok!';
+  });
+}
+
+// ── LOGIN ────────────────────────────────────────────────────────
+function initLogin() {
+  var sel = document.getElementById('sl-terulet');
+  sel.innerHTML = '<option value="">— Válassz területet —</option>';
+  TERULET_NEV.forEach(function(t) {
+    var o = document.createElement('option');
+    o.value = t.ertek;
+    o.textContent = t.label;
+    sel.appendChild(o);
+  });
+}
+
+function doLogin() {
+  var terulet = document.getElementById('sl-terulet').value;
+  var pin     = document.getElementById('sl-pin').value;
+  var btn     = document.getElementById('btn-sl-login');
+  showErr('');
+  if (!terulet) { showErr('Válassz területet!'); return; }
+  if (pin.length !== 4) { showErr('4 számjegyű PIN kell!'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Belépés...';
+  api('kioszkLogin', { gyartosor: terulet, pin: pin }).then(function(r) {
+    S.token   = r.token;
+    S.terulet = r.gyartosor || terulet;
+    // Területkód meghatározása a polling szűrőhöz
+    var tn = S.terulet.toLowerCase();
+    if (tn.indexOf('csomag') >= 0)  S.ter_kod = 'csomag';
+    else if (tn.indexOf('term') >= 0) S.ter_kod = 'termeles';
+    else S.ter_kod = '';
+    saveSession();
+    initScanOldal();
+  }).catch(function(e) {
+    var msg = (e && e.message) ? e.message : 'Ismeretlen hiba';
+    if (msg.indexOf('Hibás PIN') >= 0 || msg.toLowerCase().indexOf('pin') >= 0) {
+      showErr('❌ Hibás PIN kód!');
+    } else if (msg.indexOf('Zárolva') >= 0) {
+      showErr('🔒 Eszköz zárolva! Admin segítség szükséges.');
+    } else if (msg.indexOf('Nincs aktív') >= 0) {
+      showErr('⚠️ Nincs regisztrált eszköz ehhez a területhez.');
+    } else {
+      showErr('❌ ' + msg);
+    }
+    document.getElementById('sl-pin').value = '';
+  }).finally(function() {
+    btn.disabled = false;
+    btn.innerHTML = '⚡ Belépés';
+  });
+}
+
+function doLogout() {
+  stopCam();
+  stopPolling();
+  clearSession();
+  S.aktiv_keres = null;
+  closeAlert();
+  document.getElementById('sl-pin').value = '';
+  showErr('');
+  showPg('pg-login');
+}
+
+// ── SCAN OLDAL INIT ──────────────────────────────────────────────
+function initScanOldal() {
+  // Fejléc badge
+  var bdg = document.getElementById('sc-bdg');
+  if (bdg) {
+    bdg.innerHTML = '<span class="bdg">🟡 ' + (S.terulet || '') + '</span>';
+  }
+  showPg('pg-scan');
+  startCam();
+  startPolling();
+  showToast('Üdvözöljük! Szkenneld be a kocsi QR kódját.', 3000);
+}
+
+// ── INDÍTÁS ──────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function() {
+  initLogin();
+
+  // Enter gomb: login oldalon
+  document.getElementById('sl-pin').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
+  document.getElementById('btn-sl-login').addEventListener('click', doLogin);
+
+  // Session visszaállítás
+  if (loadSession()) {
+    initScanOldal();
+  }
+});
+
+window.addEventListener('beforeunload', function() {
+  stopCam();
+  stopPolling();
+});
+</script>
+</body>
+</html>
