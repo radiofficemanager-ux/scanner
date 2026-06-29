@@ -191,7 +191,24 @@ canvas#qc{display:none}
   border-radius:50%;animation:sp .7s linear infinite;vertical-align:-.1em;margin-right:.3rem}
 @keyframes sp{to{transform:rotate(360deg)}}
 
-/* ── NINCS ADAT OLDAL ── */
+/* ── MANUÁLIS BEVITEL OVERLAY ── */
+#manual-overlay{
+  position:fixed;inset:0;z-index:9950;background:rgba(0,0,0,.88);
+  display:none;align-items:center;justify-content:center;padding:1rem}
+#manual-overlay.on{display:flex}
+#manual-card{
+  background:#0f172a;border:1px solid #f59e0b;border-radius:20px;
+  padding:1.5rem;width:100%;max-width:380px}
+#manual-card h3{font-size:1.1rem;font-weight:800;color:#f59e0b;
+  text-align:center;margin-bottom:1rem}
+#manual-inp{
+  width:100%;padding:1rem;border:2px solid #334155;border-radius:10px;
+  background:#020617;color:#f1f5f9;font-size:1.6rem;font-weight:800;
+  font-family:monospace;text-align:center;letter-spacing:.15em;
+  outline:none;text-transform:uppercase;margin-bottom:.5rem}
+#manual-inp:focus{border-color:#f59e0b}
+#manual-hint{font-size:.78rem;color:#475569;text-align:center;margin-bottom:.75rem}
+.manual-btns{display:flex;gap:.5rem}
 .noadat-kártya{background:#0f172a;border:1px solid #334155;border-radius:16px;
   padding:1.5rem;text-align:center;width:100%;max-width:440px}
 .noadat-kártya .ico{font-size:3rem;margin-bottom:.75rem}
@@ -203,6 +220,20 @@ canvas#qc{display:none}
 
 <div id="flash"></div>
 <div id="toast"></div>
+
+<!-- ══ MANUÁLIS KOCSISZÁM BEVITEL ════════════════════════════════ -->
+<div id="manual-overlay">
+  <div id="manual-card">
+    <h3>⌨️ Manuális kocsiszám</h3>
+    <input id="manual-inp" type="text" inputmode="text"
+      placeholder="pl. K028" autocomplete="off" maxlength="20">
+    <div id="manual-hint">Írd be a kocsiszámot a QR kódról vagy a kocsiról</div>
+    <div class="manual-btns">
+      <button class="btn btn-amber" id="btn-manual-ok">✅ Keresés</button>
+      <button class="btn btn-gray" id="btn-manual-cancel">✕ Mégse</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══ KOCSIKÉRÉS ALERT OVERLAY ══════════════════════════════════ -->
 <div id="alert-overlay">
@@ -255,6 +286,13 @@ canvas#qc{display:none}
   <div class="qr-box"><div class="scan-line"></div></div>
   <div class="sc-foot">
     <div class="scan-hint" id="sc-hint">Tartsd a kocsi QR kódját a keretbe</div>
+    <!-- Manuális bevitel gomb -->
+    <button onclick="openManual()"
+      style="width:100%;padding:.55rem;border:1.5px dashed #334155;
+      border-radius:8px;background:transparent;color:#64748b;font-size:.82rem;
+      font-weight:700;cursor:pointer;margin-bottom:.35rem">
+      ⌨️ Nem olvasható? → Manuális bevitel
+    </button>
     <!-- Aktív kérés jelző csík (polling találatnál jelenik meg) -->
     <div id="keres-csik" style="display:none;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);
       border-radius:8px;padding:.5rem .75rem;margin-bottom:.4rem;
@@ -529,6 +567,9 @@ function scanLoop() {
 var _dw_buf = '', _dw_timer = null;
 document.addEventListener('keydown', function(e) {
   if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+  // Ha a manuális overlay nyitva van, ne interferáljon
+  var mo = document.getElementById('manual-overlay');
+  if (mo && mo.classList.contains('on')) return;
   if (e.key === 'Enter') {
     var val = _dw_buf.trim().toUpperCase();
     _dw_buf = '';
@@ -541,6 +582,27 @@ document.addEventListener('keydown', function(e) {
     _dw_timer = setTimeout(function() { _dw_buf = ''; }, 300);
   }
 });
+
+// ── MANUÁLIS BEVITEL ────────────────────────────────────────────
+function openManual() {
+  var ov  = document.getElementById('manual-overlay');
+  var inp = document.getElementById('manual-inp');
+  if (!ov) return;
+  inp.value = '';
+  ov.classList.add('on');
+  setTimeout(function() { inp.focus(); }, 120);
+}
+function closeManual() {
+  var ov = document.getElementById('manual-overlay');
+  if (ov) ov.classList.remove('on');
+}
+function submitManual() {
+  var inp = document.getElementById('manual-inp');
+  var val = (inp ? inp.value : '').trim().toUpperCase();
+  if (!val) { inp && inp.focus(); return; }
+  closeManual();
+  if (!S.busy) handleQR(val);
+}
 
 // ── QR FELDOLGOZÁS ───────────────────────────────────────────────
 function handleQR(kocsi) {
@@ -760,13 +822,18 @@ function initLogin() {
 
   api('getMasterData').then(function(d) {
     S.md = d;
-    sel.innerHTML = '<option value="">— Válassz gyártósort —</option>';
+    sel.innerHTML = '<option value="">— Válassz területet —</option>';
     (d.gyartosok || []).forEach(function(g) {
       var nev = g['Nev'] || g['Név'] || '';
       if (!nev) return;
+      // Csak csomagolás és termelés jellegű gyártósorokat mutatunk
+      var nevN = nev.toLowerCase()
+        .replace(/á/g,'a').replace(/é/g,'e').replace(/[óöő]/g,'o')
+        .replace(/[úüű]/g,'u').replace(/í/g,'i');
+      if (nevN.indexOf('csomag') < 0 && nevN.indexOf('termel') < 0) return;
       var o = document.createElement('option');
       o.value = nev;
-      o.textContent = nev;
+      o.textContent = nevN.indexOf('csomag') >= 0 ? '📦 ' + nev : '🏭 ' + nev;
       if (nev === lastGy) o.selected = true;
       sel.appendChild(o);
     });
@@ -838,6 +905,16 @@ function initScanOldal() {
   startCam();
   startPolling();
   showToast('Üdvözöljük! Szkenneld be a kocsi QR kódját.', 3000);
+  // Manuális bevitel gombok bekötése
+  var mOk  = document.getElementById('btn-manual-ok');
+  var mNo  = document.getElementById('btn-manual-cancel');
+  var mInp = document.getElementById('manual-inp');
+  if (mOk)  mOk.onclick  = submitManual;
+  if (mNo)  mNo.onclick  = closeManual;
+  if (mInp) mInp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') submitManual();
+    if (e.key === 'Escape') closeManual();
+  });
 }
 
 // ── INDÍTÁS ──────────────────────────────────────────────────────
