@@ -255,6 +255,16 @@ canvas#qc{display:none}
         <option value="">— Válassz sokkolót —</option>
       </select>
     </div>
+    <!-- Kemence: csak Kemence fázisnál -->
+    <div id="kemence-row" style="display:none">
+      <label class="lbl" style="margin-top:.5rem">
+        Melyik kemencébe tolják?
+        <span style="color:#f87171;font-size:.75rem"> * kötelező</span>
+      </label>
+      <select id="m-km" style="font-size:clamp(1rem,3.8vw,1.1rem);font-weight:700">
+        <option value="">— Válassz kemencét —</option>
+      </select>
+    </div>
     <button class="btn btn-blue" id="btn-start" style="margin-top:.75rem">▶ Olvasó indítása</button>
     <button class="btn btn-gray" id="btn-back">← Vissza</button>
   </div>
@@ -447,12 +457,12 @@ function setStatus(type,msg){
 function showErr(msg){ var el=document.getElementById('m-err'); if(el) el.textContent=msg; }
 function saveSes(){
   try{localStorage.setItem('ks2',JSON.stringify({
-    token:S.token,gy:S.gy,faz:S.faz,cs:S.cs,sk:S.sk,ts:Date.now(),cnt:S.cnt
+    token:S.token,gy:S.gy,faz:S.faz,cs:S.cs,sk:S.sk,km:S.km,ts:Date.now(),cnt:S.cnt
   }));}catch(e){}
 }
 function clearSes(){
   try{localStorage.removeItem('ks2');}catch(e){}
-  S.token=S.gy=S.faz=S.cs=S.sk=null; S.cnt=0;
+  S.token=S.gy=S.faz=S.cs=S.sk=S.km=null; S.cnt=0;
 }
 
 // ── LOGIN ────────────────────────────────────────────
@@ -605,6 +615,8 @@ function fillSetup(){
     if (tRow0) tRow0.style.display = 'none';
     var sRow0 = document.getElementById('sokkolo-row');
     if (sRow0) sRow0.style.display = 'none';
+    var kRow0 = document.getElementById('kemence-row');
+    if (kRow0) kRow0.style.display = 'none';
     var bdg = document.getElementById('m-bdg');
     if (bdg) { bdg.textContent = '🚿 MOSÁS'; bdg.style.background = '#0ea5e9'; }
     S.faz = 'Mosás';
@@ -655,6 +667,20 @@ function fillSetup(){
       ss.innerHTML += '<option disabled>⚠️ Nincs sokkoló konfigurálva</option>';
     }
   }
+  var ks = document.getElementById('m-km');
+  if (ks) {
+    var kmGep = d.kemence_gep || [];
+    ks.innerHTML = '<option value="">— Válassz kemencét —</option>';
+    kmGep.forEach(function(n, i) {
+      var o = document.createElement('option');
+      o.value = n; o.textContent = (i + 1) + '. ' + n;
+      if (S.km && S.km === n) o.selected = true;
+      ks.appendChild(o);
+    });
+    if (kmGep.length === 0) {
+      ks.innerHTML += '<option disabled>⚠️ Nincs kemence konfigurálva</option>';
+    }
+  }
   S.termekek=(d.termekek||[]).filter(function(t){return t.Aktiv!==false;});
   if (!S.cs && S.gy) {
     try { S.cs = localStorage.getItem('last_cs_'+S.gy) || ''; } catch(e){}
@@ -689,10 +715,13 @@ function updSkRow(){
   var fazN       = norm_s(faz);
   var isSorvege  = fazN.indexOf('sorveg') >= 0;
   var isSokkolas = fazN.indexOf('sokkol') >= 0;
+  var isKemence  = fazN.indexOf('kemenc') >= 0;
   var tRow = document.getElementById('termek-row');
   var sRow = document.getElementById('sokkolo-row');
+  var kRow = document.getElementById('kemence-row');
   if (tRow) tRow.style.display = isSorvege  ? '' : 'none';
   if (sRow) sRow.style.display = isSokkolas ? '' : 'none';
+  if (kRow) kRow.style.display = isKemence  ? '' : 'none';
   if (!isSorvege) {
     var cs = document.getElementById('m-cs');
     if (cs) cs.innerHTML = '<option value="">(auto – rendszer keresi)</option>';
@@ -704,12 +733,15 @@ function doStart(){
   var faz = document.getElementById('m-faz') ? document.getElementById('m-faz').value : '';
   var cs  = document.getElementById('m-cs')  ? document.getElementById('m-cs').value  : '';
   var sk  = document.getElementById('m-sk')  ? document.getElementById('m-sk').value  : '';
+  var km  = document.getElementById('m-km')  ? document.getElementById('m-km').value  : '';
   var fn  = norm_s(faz);
   var isSorvege  = fn.indexOf('sorveg') >= 0;
   var isSokkolas = fn.indexOf('sokkol') >= 0;
+  var isKemence  = fn.indexOf('kemenc') >= 0;
   if (!faz)               { showToast('Válassz fázist!'); return; }
   if (isSorvege  && !cs)  { showToast('Sorvégén kötelező a termék kiválasztása!'); return; }
   if (isSokkolas && !sk)  { showToast('Sokkoláshoz válassz sokkoló gépet!'); return; }
+  if (isKemence  && !km)  { showToast('Kemencéhez válassz kemence gépet!'); return; }
   // Cikkszám változott → számláló nullázása
   // (prevCs az előző session cs-je, cs az újonnan kiválasztott)
   var ujCs = isSorvege ? cs : '';
@@ -717,7 +749,7 @@ function doStart(){
     S.cnt = 0;
     showToast('🔄 Új termék – számláló nullázva', 2000);
   }
-  S.faz=faz; S.cs=ujCs; S.sk=isSokkolas?sk:'';
+  S.faz=faz; S.cs=ujCs; S.sk=isSokkolas?sk:''; S.km=isKemence?km:'';
   saveSes(); goScan();
 }
 
@@ -728,6 +760,7 @@ function goScan(){
     '<span class="bdg">🏭 '+S.gy+'</span>'+
     '<span class="bdg">🔄 '+S.faz+'</span>'+
     (S.sk?'<span class="bdg">🧊 '+S.sk+'</span>':'')+
+    (S.km?'<span class="bdg">🔥 '+S.km+'</span>':'')+
     (S.cs?'<span class="bdg">📦 '+S.cs+'</span>':'');
   document.getElementById('m-cnt').textContent=S.cnt;
   document.getElementById('m-last').textContent='';
@@ -1018,7 +1051,7 @@ function onScan(raw){
   if(_torchOn){ toggleTorch(); }
   saveSes();
 
-  apiPost('submitScan',{kocsi_szam:text,gyartosor:S.gy,fazis:S.faz,cikkszam:S.cs||'',sokkolo:S.sk||''})
+  apiPost('submitScan',{kocsi_szam:text,gyartosor:S.gy,fazis:S.faz,cikkszam:S.cs||'',sokkolo:S.sk||'',kemence:S.km||''})
     .then(function(r){
       if(r && r.duplicate){
         S.cnt--;
@@ -1119,7 +1152,7 @@ document.addEventListener('DOMContentLoaded',function(){
   try{
     var ses=JSON.parse(localStorage.getItem('ks2')||'null');
     if(ses&&ses.token&&(Date.now()-ses.ts)<43200000){
-      S.token=ses.token;S.gy=ses.gy;S.faz=ses.faz;S.cs=ses.cs;S.sk=ses.sk;
+      S.token=ses.token;S.gy=ses.gy;S.faz=ses.faz;S.cs=ses.cs;S.sk=ses.sk;S.km=ses.km||'';
       var _sesGy = (S.gy||'').toLowerCase().replace(/[áéíóöőúüű]/g,function(c){
         return {á:'a',é:'e',í:'i',ó:'o',ö:'o',ő:'o',ú:'u',ü:'u',ű:'u'}[c]||c;});
       if (_sesGy.indexOf('mos') >= 0) S.faz = 'Kocsimosás';
