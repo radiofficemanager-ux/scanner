@@ -5,7 +5,7 @@
 
 // FONTOS: ezt a számot változtasd meg minden deploykor!
 // Pl: v1.0 → v1.1 → v2.0
-const CACHE_VERSION = 'scanner-v1.4';
+const CACHE_VERSION = 'scanner-v1.5';
 
 const CACHED_FILES = [
   './',
