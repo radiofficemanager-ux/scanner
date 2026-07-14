@@ -416,39 +416,31 @@ function beepALERT() {
   if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
 }
 
-// ── JSONP API ────────────────────────────────────────────────────
+// ── FETCH POST API (JSONP kiváltva – token nem kerül az URL-be!) ──
 function api(action, params) {
-  return new Promise(function(resolve, reject) {
-    var cbName = '_spcb' + Date.now() + Math.floor(Math.random() * 1000);
-    var url    = GAS_URL + '?callback=' + cbName + '&action=' + encodeURIComponent(action);
-    var p      = Object.assign({}, params || {});
-    if (S.token) p.token = S.token;
-    for (var k in p) {
-      url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(p[k] !== undefined ? p[k] : '');
-    }
-    var timer = setTimeout(function() {
-      cleanup();
-      reject(new Error('Időtúllépés'));
-    }, 15000);
-    function cleanup() {
-      clearTimeout(timer);
-      delete window[cbName];
-      var s = document.getElementById(cbName);
-      if (s && s.parentNode) s.parentNode.removeChild(s);
-    }
-    window[cbName] = function(data) {
-      cleanup();
-      if (data && data.ok === false) {
-        reject(new Error(data.error || 'Szerverhiba'));
-      } else {
-        resolve(data && data.result !== undefined ? data.result : data);
-      }
-    };
-    var script = document.createElement('script');
-    script.id  = cbName;
-    script.src = url;
-    script.onerror = function() { cleanup(); reject(new Error('Hálózati hiba')); };
-    document.head.appendChild(script);
+  var p = Object.assign({}, params || {});
+  if (S.token) p.token = S.token;
+  var ctrl  = new AbortController();
+  var timer = setTimeout(function() { ctrl.abort(); }, 15000);
+  // text/plain: nincs CORS preflight, a GAS doPost e.postData.contents-ből parsol
+  return fetch(GAS_URL, {
+    method : 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body   : JSON.stringify({ action: action, token: p.token || '', data: p }),
+    signal : ctrl.signal,
+    redirect: 'follow'
+  }).then(function(resp) {
+    clearTimeout(timer);
+    if (!resp.ok) throw new Error('Szerverhiba (HTTP ' + resp.status + ')');
+    return resp.json();
+  }).then(function(data) {
+    if (data && data.ok === false) throw new Error(data.error || 'Szerverhiba');
+    return (data && data.result !== undefined) ? data.result : data;
+  }).catch(function(err) {
+    clearTimeout(timer);
+    if (err.name === 'AbortError') throw new Error('Időtúllépés');
+    if (err instanceof TypeError)  throw new Error('Hálózati hiba');
+    throw err;
   });
 }
 
