@@ -205,8 +205,9 @@ canvas#qc{display:none}
   <div id="manual-card">
     <h3>⌨️ Manuális kocsi bevitel</h3>
     <input id="manual-inp" type="text" inputmode="text"
-      placeholder="pl. K-0042" autocomplete="off" maxlength="20">
-    <div id="manual-hint">Írd be a kocsiszámot a QR kódról / kocsiról</div>
+      placeholder="pl. 82 vagy K082" autocomplete="off" maxlength="20">
+    <div id="manual-hint">Írd be a kocsiszámot – a K betűt automatikusan hozzáírjuk</div>
+    <div id="manual-preview" style="text-align:center;font-size:.8rem;color:#94a3b8;min-height:1.2rem;margin-bottom:.4rem"></div>
     <div class="manual-btns">
       <button class="btn btn-amber" id="btn-manual-ok">✅ Rögzít</button>
       <button class="btn btn-gray" id="btn-manual-cancel">✕ Mégse</button>
@@ -914,6 +915,18 @@ function startDecode(){
   tick();
 }
 
+// ── KOCSISZÁM NORMALIZÁLÁS ───────────────────────────
+// Ha valaki csak számot ír be (pl. "82" vagy "171"), automatikusan
+// "K082" / "K171" formátumra hozza. Ha már "K" prefixszel jön → padding.
+// Egyéb formátum (pl. "KÖNIG_KALACS") → változatlan marad.
+function normKocsi(raw) {
+  var s = (raw || '').trim().toUpperCase();
+  if (!s) return s;
+  if (/^\d+$/.test(s))  return 'K' + s.padStart(3, '0'); // "82"  → "K082"
+  if (/^K\d+$/.test(s)) return 'K' + s.slice(1).padStart(3, '0'); // "K82" → "K082"
+  return s; // "KÖNIG_KALACS", "K-082" stb. → változatlan
+}
+
 // ── ZEBRA TC22 – DATAWEDGE / HID KEYBOARD WEDGE ─────
 // A Zebra beépített 2D imager (SE4100) DataWedge "Keystroke output" módban
 // billentyűleütésként küldi az adatot (gyorsan, Enter lezárással).
@@ -934,14 +947,14 @@ document.addEventListener('keydown', function(e){
     clearTimeout(_hidTimer);
     // Ha 150ms-en belül nem jön újabb karakter → scan befejezve
     _hidTimer = setTimeout(function(){
-      var buf = _hidBuf.trim().toUpperCase();
+      var buf = normKocsi(_hidBuf);
       _hidBuf = '';
       if (buf.length >= 2) onScan(buf);
     }, 150);
   } else if (e.key === 'Enter' || e.key === 'Tab') {
     // Enter / Tab → DataWedge lezárta a scan-t
     clearTimeout(_hidTimer);
-    var buf2 = _hidBuf.trim().toUpperCase();
+    var buf2 = normKocsi(_hidBuf);
     _hidBuf = '';
     if (buf2.length >= 2) onScan(buf2);
     e.preventDefault();
@@ -973,14 +986,15 @@ function closeManual(){
 }
 function submitManual(){
   var inp = document.getElementById('manual-inp');
-  var val = (inp.value||'').trim().toUpperCase();
+  var val = normKocsi(inp.value || '');
   if (!val || val.length < 2) {
     inp.style.borderColor='#ef4444';
     setTimeout(function(){ inp.style.borderColor=''; },1200);
     return;
   }
+  inp.value = val; // megmutatja a normalizált értéket bezárás előtt
   closeManual();
-  onScan(val); // ugyanaz a feldolgozás mint QR scan esetén
+  onScan(val);
 }
 
 // ── SCAN FELDOLGOZÁS ─────────────────────────────────
@@ -1101,6 +1115,17 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('m-faz').addEventListener('change',updSkRow);
   document.getElementById('m-tsrch').addEventListener('input',function(){filterT(this.value);});
 
+  // Manuális input: élő preview (megmutatja mi lesz belőle rögzítve)
+  document.getElementById('manual-inp').addEventListener('input', function(){
+    var norm = normKocsi(this.value);
+    var prev = document.getElementById('manual-preview');
+    if (!prev) return;
+    if (norm && norm !== this.value.trim().toUpperCase() && norm.length >= 2) {
+      prev.innerHTML = '→ <strong style="color:#f59e0b">' + norm + '</strong> lesz rögzítve';
+    } else {
+      prev.textContent = '';
+    }
+  });
   // Manuális input: Enter = rögzít
   document.getElementById('manual-inp').addEventListener('keydown',function(e){
     if(e.key==='Enter'){ e.preventDefault(); submitManual(); }
